@@ -921,6 +921,11 @@ function buildWb(){
 }
 function downloadExcel(){
   if(!entries.length){toast('Add entries first.',true);return;}
+  // If Drive is connected, sync to the same file instead of downloading a new one
+  if(accessToken && driveFileId){
+    saveToDrive();
+    return;
+  }
   XLSX.writeFile(buildWb(),'Account_Balance.xlsx');
   toast('📥 Excel downloaded!');
 }
@@ -957,8 +962,11 @@ async function loadPrefs(){
   try{
     const res = await window.storage.get('abd_prefs');
     if(res && res.value){
-      const {cid, fid} = JSON.parse(res.value);
-      if(cid) document.getElementById('clientIdInput').value = cid;
+      const p = JSON.parse(res.value);
+      if(p.cid) document.getElementById('clientIdInput').value = p.cid;
+      // prefer dedicated file ID key (most up to date), fall back to prefs
+      const fidRes = await window.storage.get('abd_file_id').catch(()=>null);
+      const fid = (fidRes && fidRes.value) || p.fid || '';
       if(fid){ document.getElementById('fileIdInput').value = fid; driveFileId = fid; }
     }
   }catch(e){}
@@ -966,8 +974,10 @@ async function loadPrefs(){
 async function savePrefs(){
   try{
     const cid = document.getElementById('clientIdInput').value.trim();
-    const fid = document.getElementById('fileIdInput').value.trim();
+    const fid = document.getElementById('fileIdInput').value.trim() || driveFileId;
+    // save both together and as a dedicated key so file ID is never lost
     await window.storage.set('abd_prefs', JSON.stringify({cid, fid}));
+    if(fid) await window.storage.set('abd_file_id', fid);
   }catch(e){}
 }
 
@@ -1007,7 +1017,7 @@ function doSignIn(){
   const cid=document.getElementById('clientIdInput').value.trim();
   if(!cid){toast('Enter your Client ID first.',true);return;}
   setStatus('syncing','Opening Google sign-in…');
-  savePrefs();
+  savePrefs(); // fire and forget is fine here (just saving client id)
   try{
     initToken(cid);
     initGapi(cid).catch(err=>log('gapi init: '+err.message,'err'));
@@ -1033,11 +1043,13 @@ function openPicker(){
   new google.picker.PickerBuilder()
     .addView(view).setOAuthToken(accessToken).setCallback(pickerCb).build().setVisible(true);
 }
-function pickerCb(data){
+async function pickerCb(data){
   if(data[google.picker.Response.ACTION]===google.picker.Action.PICKED){
     const doc=data[google.picker.Response.DOCUMENTS][0];
-    document.getElementById('fileIdInput').value=doc[google.picker.Document.ID];
-    updateDriveButtons(); savePrefs();
+    driveFileId = doc[google.picker.Document.ID];
+    document.getElementById('fileIdInput').value = driveFileId;
+    updateDriveButtons();
+    await savePrefs();
     toast('📄 '+doc[google.picker.Document.NAME]+' selected.');
     log('File selected: '+doc[google.picker.Document.NAME],'ok');
   }
@@ -1124,7 +1136,7 @@ async function saveToDrive(){
       const newFile=await resp.json();
       driveFileId=newFile.id;
       document.getElementById('fileIdInput').value=driveFileId;
-      savePrefs();
+      await savePrefs(); // persist the new file ID immediately
       log(`New file created on Drive. ID: ${driveFileId}`,'ok');
     } else {
       if(!resp.ok){const e=await resp.json().catch(()=>({error:{message:resp.statusText}}));throw new Error(e.error?.message||resp.statusText);}
