@@ -600,13 +600,20 @@ const ACCOUNTS = {
 const ACC_IDS = Object.keys(ACCOUNTS);
 let entries = [];
 
-// ── Persistent storage (window.storage) ──────────
+// ── Persistent storage (localStorage) ──────────
+// ── Storage helpers (localStorage — works on GitHub Pages + any real site) ──
+const LS = {
+  set(key, value){ try{ localStorage.setItem(key, value); return {key,value}; }catch(e){ return null; } },
+  get(key){ try{ const v=localStorage.getItem(key); if(v===null) throw new Error('not found'); return {key,value:v}; }catch(e){ return null; } },
+  delete(key){ try{ localStorage.removeItem(key); return {key,deleted:true}; }catch(e){ return null; } }
+};
+
 async function saveEntries(){
-  try{ await window.storage.set('abd_entries', JSON.stringify(entries)); }catch(e){}
+  try{ LS.set('abd_entries', JSON.stringify(entries)); }catch(e){}
 }
 async function loadEntries(){
   try{
-    const res = await window.storage.get('abd_entries');
+    const res = LS.get('abd_entries');
     if(res && res.value && res.value !== 'null'){
       const parsed = JSON.parse(res.value);
       if(Array.isArray(parsed)) entries = parsed;
@@ -959,12 +966,12 @@ function updateDriveButtons(){
 }
 async function loadPrefs(){
   try{
-    const res = await window.storage.get('abd_prefs');
+    const res = LS.get('abd_prefs');
     if(res && res.value){
       const p = JSON.parse(res.value);
       if(p.cid) document.getElementById('clientIdInput').value = p.cid;
       // prefer dedicated file ID key (most up to date), fall back to prefs
-      const fidRes = await window.storage.get('abd_file_id').catch(()=>null);
+      const fidRes = LS.get('abd_file_id');
       const fid = (fidRes && fidRes.value) || p.fid || '';
       if(fid){ document.getElementById('fileIdInput').value = fid; driveFileId = fid; }
     }
@@ -986,7 +993,7 @@ function onTokenReceived(resp, isAutoReconnect){
   // Persist token + expiry
   try{
     const expiry = Date.now() + 55 * 60 * 1000;
-    window.storage.set('abd_token', JSON.stringify({token: accessToken, expiry}));
+    LS.set('abd_token', JSON.stringify({token: accessToken, expiry}));
   }catch(e){}
   if(!wasAlreadySignedIn){
     onSignedIn();
@@ -1027,7 +1034,7 @@ async function autoReconnect(){
 
   // Fast path: restore from saved token if still valid (no network call)
   try{
-    const res = await window.storage.get('abd_token');
+    const res = LS.get('abd_token');
     if(res && res.value){
       const {token, expiry} = JSON.parse(res.value);
       if(token && expiry && Date.now() < expiry){
@@ -1060,8 +1067,8 @@ async function savePrefs(){
     const cid = document.getElementById('clientIdInput').value.trim();
     const fid = document.getElementById('fileIdInput').value.trim() || driveFileId;
     // save both together and as a dedicated key so file ID is never lost
-    await window.storage.set('abd_prefs', JSON.stringify({cid, fid}));
-    if(fid) await window.storage.set('abd_file_id', fid);
+    LS.set('abd_prefs', JSON.stringify({cid, fid}));
+    if(fid) LS.set('abd_file_id', fid);
   }catch(e){}
 }
 
@@ -1121,7 +1128,7 @@ function doSignOut(){
   log('Signed out and session cleared.','info');
   toast('👋 Signed out.');
   // Clear ALL persisted auth so next load starts fresh
-  try{ window.storage.delete('abd_token'); }catch(e){}
+  try{ LS.delete('abd_token'); }catch(e){}
 }
 function openPicker(){
   if(!pickerLoaded||!accessToken) return;
