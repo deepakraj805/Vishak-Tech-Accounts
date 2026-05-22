@@ -517,7 +517,8 @@ tr:last-child td{border-bottom:none}
           </div>
           <div class="hint-box" style="margin-top:10px">
             Enable <code>Google Drive API</code> + <code>Google Picker API</code>.<br>
-            Add your domain to <code>Authorized JS origins</code>.
+            Add your domain to <code>Authorized JS origins</code>.<br>
+            Use scope: <code>drive</code> (not <code>drive.file</code>).
           </div>
         </div>
         <div class="step-card" id="step2card">
@@ -546,7 +547,7 @@ tr:last-child td{border-bottom:none}
 
       <div class="drive-status-bar" id="driveStatusBar">
         <span class="status-dot" id="statusDot"></span>
-        <span id="statusText">Not connected — enter your Client ID and sign in.</span>
+        <span id="statusText">Not connected — enter your Client ID and sign in. File ID is optional; a new file will be created if blank or not found.</span>
       </div>
 
       <div class="drive-actions-row">
@@ -590,7 +591,7 @@ function loadEntries(){
 
 // Drive
 let tokenClient=null, accessToken=null, driveFileId='', pickerLoaded=false;
-const SCOPES='https://www.googleapis.com/auth/drive.file';
+const SCOPES='https://www.googleapis.com/auth/drive';
 
 // ══════════════════════════════════════════════════
 //  INIT
@@ -909,10 +910,11 @@ function setStatus(state,msg){
 }
 function updateDriveButtons(){
   driveFileId=document.getElementById('fileIdInput').value.trim();
-  const ready=!!accessToken&&!!driveFileId;
-  document.getElementById('loadDriveBtn').disabled=!ready;
-  document.getElementById('saveDriveBtn').disabled=!ready;
-  document.getElementById('topSyncBtn').disabled=!ready;
+  const canSave=!!accessToken; // save works even without a file ID (will create new)
+  const canLoad=!!accessToken&&!!driveFileId;
+  document.getElementById('loadDriveBtn').disabled=!canLoad;
+  document.getElementById('saveDriveBtn').disabled=!canSave;
+  document.getElementById('topSyncBtn').disabled=!canSave;
 }
 function loadPrefs(){
   try{
@@ -1037,7 +1039,7 @@ async function loadFromDrive(){
 }
 async function saveToDrive(){
   driveFileId=document.getElementById('fileIdInput').value.trim();
-  if(!accessToken||!driveFileId){toast('Connect Drive first.',true);return;}
+  if(!accessToken){toast('Connect Drive first.',true);return;}
   if(!entries.length){toast('Add entries first.',true);return;}
   setStatus('syncing','Uploading to Drive…');
   log('Uploading…','info');
@@ -1046,12 +1048,48 @@ async function saveToDrive(){
   try{
     const out=XLSX.write(buildWb(),{bookType:'xlsx',type:'array'});
     const blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-    const resp=await fetch(`https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`,{
-      method:'PATCH',
-      headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'},
-      body:blob
-    });
-    if(!resp.ok){const e=await resp.json().catch(()=>({error:{message:resp.statusText}}));throw new Error(e.error?.message||resp.statusText);}
+
+    let resp;
+    if(driveFileId){
+      // Try to update the existing file
+      resp=await fetch(`https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`,{
+        method:'PATCH',
+        headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'},
+        body:blob
+      });
+      // If file not found (404) or forbidden (403), fall through to create a new file
+      if(resp.status===404||resp.status===403){
+        log(`File not found (${resp.status}) — creating a new file on Drive…`,'info');
+        resp=null; // signal to create
+      }
+    }
+
+    if(!driveFileId||resp===null){
+      // Create a new file via multipart upload
+      const meta=JSON.stringify({name:'Account_Balance.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      const boundary='----XLSXBoundary'+Date.now();
+      const body=[
+        '--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+meta+'\r\n',
+        '--'+boundary+'\r\nContent-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\r\n\r\n',
+      ];
+      const metaBlob=new Blob([body[0],body[1]],{type:'text/plain'});
+      const closeBlob=new Blob(['\r\n--'+boundary+'--'],{type:'text/plain'});
+      const multipart=new Blob([metaBlob,blob,closeBlob],{type:`multipart/related; boundary=${boundary}`});
+      resp=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{
+        method:'POST',
+        headers:{Authorization:'Bearer '+accessToken,'Content-Type':`multipart/related; boundary=${boundary}`},
+        body:multipart
+      });
+      if(!resp.ok){const e=await resp.json().catch(()=>({error:{message:resp.statusText}}));throw new Error(e.error?.message||resp.statusText);}
+      const newFile=await resp.json();
+      driveFileId=newFile.id;
+      document.getElementById('fileIdInput').value=driveFileId;
+      savePrefs();
+      log(`New file created on Drive. ID: ${driveFileId}`,'ok');
+    } else {
+      if(!resp.ok){const e=await resp.json().catch(()=>({error:{message:resp.statusText}}));throw new Error(e.error?.message||resp.statusText);}
+    }
+
     setStatus('success',`Saved ${entries.length} entries to Drive.`);
     log(`Saved ${entries.length} entries to Drive.`,'ok');
     toast('☁ Saved to Google Drive!');
@@ -1060,8 +1098,7 @@ async function saveToDrive(){
     log('Save error: '+err.message,'err');
     toast('❌ '+err.message,true);
   }finally{
-    document.getElementById('saveDriveBtn').disabled=!accessToken||!driveFileId;
-    document.getElementById('topSyncBtn').disabled=!accessToken||!driveFileId;
+    updateDriveButtons();
   }
 }
 
