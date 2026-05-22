@@ -280,6 +280,22 @@ tr:last-child td{border-bottom:none}
 .sparkline-fill{height:100%;border-radius:99px;background:var(--accent);transition:width .6s}
 .sparkline-fill.neg{background:var(--red)}
 
+/* ── LOADING OVERLAY ─────────────────────────────── */
+#loadingOverlay{
+  position:fixed;inset:0;background:var(--bg);z-index:9999;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  transition:opacity .3s ease;
+}
+#loadingOverlay.hidden{opacity:0;pointer-events:none;}
+.loader-ring{
+  width:44px;height:44px;border-radius:50%;
+  border:3px solid var(--faint);
+  border-top-color:var(--accent);
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loader-text{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.06em}
+
 /* ── RESPONSIVE ──────────────────────────────────── */
 @media(max-width:1100px){
   .two-col{grid-template-columns:1fr}
@@ -299,6 +315,10 @@ tr:last-child td{border-bottom:none}
 </style>
 </head>
 <body>
+<div id="loadingOverlay">
+  <div class="loader-ring"></div>
+  <div class="loader-text">Loading your data…</div>
+</div>
 <div class="shell">
 
   <!-- ── SIDEBAR ── -->
@@ -590,8 +610,11 @@ async function saveEntries(){
 async function loadEntries(){
   try{
     const res = await window.storage.get('abd_entries');
-    if(res && res.value){ entries = JSON.parse(res.value); }
-  }catch(e){ entries = []; }
+    if(res && res.value && res.value !== 'null'){
+      const parsed = JSON.parse(res.value);
+      if(Array.isArray(parsed)) entries = parsed;
+    }
+  }catch(e){ /* key not found yet — entries stays [] */ }
 }
 
 // Drive
@@ -604,12 +627,24 @@ const SCOPES='https://www.googleapis.com/auth/drive';
 document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
 syncHolder();
 
-// async init — load persisted data before first render
+// async init — wait for storage, then reveal UI
 (async ()=>{
-  await loadPrefs();
-  await loadEntries();
+  const overlay = document.getElementById('loadingOverlay');
+  // Retry up to 5 times with a short delay — storage may not be ready instantly
+  for(let attempt = 0; attempt < 5; attempt++){
+    try{
+      await loadPrefs();
+      await loadEntries();
+      break; // success
+    }catch(e){
+      if(attempt < 4) await new Promise(r => setTimeout(r, 200));
+    }
+  }
   refreshAll();
   updateDriveButtons();
+  // Fade out overlay
+  overlay.classList.add('hidden');
+  setTimeout(()=>{ overlay.style.display='none'; }, 320);
 })();
 
 // responsive menu button
