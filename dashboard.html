@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Account Balance Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://apis.google.com/js/api.js"></script>
+<script src="https://accounts.google.com/gsi/client"></script>
+<style>
+/* ── TOKENS ──────────────────────────────────────── */
+:root {
+  --bg:        #0d0f14;
+  --bg2:       #13161e;
+  --bg3:       #191d28;
+  --surface:   #1e2230;
+  --surface2:  #252a3a;
+  --border:    rgba(255,255,255,.07);
+  --border2:   rgba(255,255,255,.12);
+  --text:      #e8eaf0;
+  --muted:     #7a8299;
+  --faint:     #3d4358;
+  --accent:    #6ee7b7;
+  --accent2:   #3b82f6;
+  --gold:      #f59e0b;
+  --red:       #f87171;
+  --green:     #34d399;
+  --sidebar-w: 240px;
+  --hdr:       64px;
+  --radius:    12px;
+  --mono: 'DM Mono', monospace;
+  --display: 'Fraunces', Georgia, serif;
+  --body: 'DM Sans', system-ui, sans-serif;
+}
+[data-theme="light"] {
+  --bg: #f0f2f8; --bg2: #e8eaf2; --bg3: #dde0eb;
+  --surface: #fff; --surface2: #f5f7fc;
+  --border: rgba(0,0,0,.07); --border2: rgba(0,0,0,.12);
+  --text: #111520; --muted: #5c637d; --faint: #c8cdd9;
+  --accent: #059669; --accent2: #2563eb;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--body);background:var(--bg);color:var(--text);font-size:14px;line-height:1.6}
+button,input,select{font:inherit;border:none;outline:none;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ── SCROLLBAR ───────────────────────────────────── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--faint);border-radius:9px}
+
+/* ── SHELL ───────────────────────────────────────── */
+.shell{display:grid;grid-template-columns:var(--sidebar-w) 1fr;grid-template-rows:var(--hdr) 1fr;height:100vh}
+
+/* ── SIDEBAR ─────────────────────────────────────── */
+.sidebar{
+  grid-row:1/3;background:var(--bg2);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;
+  transition:width .25s ease;z-index:20;
+}
+.sidebar-logo{
+  height:var(--hdr);display:flex;align-items:center;gap:10px;
+  padding:0 20px;border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.logo-mark{
+  width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.logo-mark svg{width:18px;height:18px;fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round}
+.logo-text{font-family:var(--display);font-size:15px;font-weight:600;letter-spacing:-.01em;line-height:1.2}
+.logo-text span{display:block;font-size:10px;font-family:var(--body);font-weight:400;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+
+.nav{padding:12px 10px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.nav-section-label{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:10px 10px 4px;font-weight:600}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;
+  color:var(--muted);font-size:13px;font-weight:500;cursor:pointer;transition:.15s;
+  border:1px solid transparent;
+}
+.nav-item:hover{background:var(--surface);color:var(--text)}
+.nav-item.active{background:linear-gradient(135deg,rgba(110,231,183,.12),rgba(59,130,246,.08));color:var(--accent);border-color:rgba(110,231,183,.15)}
+.nav-item svg{width:16px;height:16px;flex-shrink:0;opacity:.8}
+.nav-item .badge{margin-left:auto;background:var(--accent2);color:#fff;font-size:10px;padding:1px 6px;border-radius:99px;font-family:var(--mono)}
+
+.sidebar-footer{padding:12px 10px;border-top:1px solid var(--border)}
+.drive-connect-mini{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;
+  background:var(--surface);border:1px solid var(--border2);cursor:pointer;transition:.15s;
+}
+.drive-connect-mini:hover{border-color:var(--accent2)}
+.drive-dot{width:8px;height:8px;border-radius:50%;background:var(--faint);flex-shrink:0;transition:.3s}
+.drive-dot.on{background:var(--green);box-shadow:0 0 8px var(--green)}
+.drive-connect-mini span{font-size:12px;color:var(--muted);font-weight:500}
+.drive-connect-mini strong{font-size:12px;color:var(--text);margin-left:auto}
+
+/* ── HEADER ──────────────────────────────────────── */
+.header{
+  height:var(--hdr);background:var(--bg);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 28px;gap:16px;z-index:10;
+}
+.header-title{font-family:var(--display);font-size:18px;font-weight:600;letter-spacing:-.02em}
+.header-title span{color:var(--muted);font-weight:300;font-style:italic}
+.header-actions{display:flex;align-items:center;gap:10px}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;transition:.15s;white-space:nowrap}
+.btn-ghost{background:var(--surface);color:var(--muted);border:1px solid var(--border2)}
+.btn-ghost:hover{color:var(--text);border-color:var(--border2)}
+.btn-green{background:#1d6f42;color:#fff}
+.btn-green:hover{background:#155230}
+.btn-blue{background:var(--accent2);color:#fff}
+.btn-blue:hover{background:#1d4ed8}
+.btn-blue:disabled{background:#374151;color:var(--muted);cursor:not-allowed}
+.btn-accent{background:linear-gradient(135deg,var(--accent),#059669);color:#0d1a14}
+.btn-accent:hover{filter:brightness(1.1)}
+.theme-btn{background:var(--surface);border:1px solid var(--border2);color:var(--muted);width:36px;height:36px;padding:0;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px}
+
+/* ── MAIN ────────────────────────────────────────── */
+.main{overflow-y:auto;background:var(--bg);padding:24px 28px;display:flex;flex-direction:column;gap:20px}
+
+/* ── VIEWS ───────────────────────────────────────── */
+.view{display:none}
+.view.active{display:flex;flex-direction:column;gap:20px}
+
+/* ── KPI ROW ─────────────────────────────────────── */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.kpi-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:18px 20px;position:relative;overflow:hidden;transition:.2s;
+}
+.kpi-card:hover{border-color:var(--border2);transform:translateY(-1px)}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.kpi-card:nth-child(1)::before{background:linear-gradient(90deg,var(--accent),transparent)}
+.kpi-card:nth-child(2)::before{background:linear-gradient(90deg,var(--accent2),transparent)}
+.kpi-card:nth-child(3)::before{background:linear-gradient(90deg,var(--gold),transparent)}
+.kpi-card:nth-child(4)::before{background:linear-gradient(90deg,var(--red),transparent)}
+.kpi-label{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:8px}
+.kpi-val{font-family:var(--mono);font-size:26px;font-weight:500;line-height:1;letter-spacing:-.02em;margin-bottom:6px}
+.kpi-sub{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px}
+.kpi-badge{display:inline-block;padding:2px 7px;border-radius:99px;font-size:10px;font-weight:600;font-family:var(--mono)}
+.badge-pos{background:rgba(52,211,153,.15);color:var(--green)}
+.badge-neg{background:rgba(248,113,113,.15);color:var(--red)}
+.badge-neu{background:rgba(245,158,11,.12);color:var(--gold)}
+
+/* ── TWO-COL ──────────────────────────────────────── */
+.two-col{display:grid;grid-template-columns:1.4fr 1fr;gap:20px;align-items:start}
+.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+
+/* ── PANEL ───────────────────────────────────────── */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.panel-hdr{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.panel-hdr h2{font-family:var(--display);font-size:16px;font-weight:600;letter-spacing:-.01em}
+.panel-hdr p{font-size:12px;color:var(--muted);margin-top:1px}
+.panel-body{padding:20px}
+
+/* ── BAR CHART ───────────────────────────────────── */
+.chart-wrap{padding:16px 20px 20px}
+.chart-bars{display:flex;align-items:flex-end;gap:10px;height:160px;margin-top:8px}
+.chart-bar-group{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px}
+.chart-bar-track{width:100%;flex:1;display:flex;align-items:flex-end;border-radius:6px 6px 0 0;overflow:hidden;background:var(--bg3)}
+.chart-bar-fill{
+  width:100%;border-radius:6px 6px 0 0;
+  background:linear-gradient(180deg,var(--accent),rgba(110,231,183,.4));
+  transition:height .6s cubic-bezier(.34,1.56,.64,1);min-height:4px;
+}
+.chart-bar-fill.neg{background:linear-gradient(180deg,var(--red),rgba(248,113,113,.3))}
+.chart-bar-label{font-size:10px;color:var(--muted);text-align:center;font-family:var(--mono)}
+.chart-bar-val{font-size:9px;color:var(--muted);font-family:var(--mono);text-align:center}
+
+/* ── ACCOUNT CARDS ───────────────────────────────── */
+.acc-card{
+  background:var(--bg3);border:1px solid var(--border);border-radius:10px;
+  padding:14px;transition:.15s;cursor:default;
+}
+.acc-card:hover{border-color:var(--border2);background:var(--surface2)}
+.acc-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.acc-id{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.04em}
+.acc-name{font-size:13px;font-weight:600;margin-top:1px}
+.acc-bal{font-family:var(--mono);font-size:20px;font-weight:500;letter-spacing:-.02em;line-height:1;margin-top:6px}
+.acc-meta{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
+.acc-txn{font-size:10px;color:var(--muted)}
+
+/* ── ENTRY TABLE ─────────────────────────────────── */
+.tbl-wrap{overflow-x:auto;max-height:360px;overflow-y:auto}
+table{width:100%;border-collapse:collapse}
+th{position:sticky;top:0;background:var(--surface);padding:10px 14px;text-align:left;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border);z-index:1}
+td{padding:11px 14px;font-size:13px;border-bottom:1px solid var(--border);transition:.1s}
+tr:hover td{background:var(--surface2)}
+tr:last-child td{border-bottom:none}
+.mono{font-family:var(--mono)}
+.cr{color:var(--green);font-weight:600}
+.dr{color:var(--red);font-weight:600}
+.type-chip{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700;letter-spacing:.04em}
+.type-chip.cr{background:rgba(52,211,153,.12)}
+.type-chip.dr{background:rgba(248,113,113,.1)}
+.empty-state{padding:40px;text-align:center;color:var(--muted);font-size:13px}
+.empty-state svg{width:40px;height:40px;margin:0 auto 10px;display:block;opacity:.3}
+
+/* ── FORM ────────────────────────────────────────── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.field input,.field select{
+  background:var(--bg3);border:1px solid var(--border2);border-radius:8px;
+  color:var(--text);padding:10px 12px;font-size:13px;transition:.15s;
+}
+.field input:focus,.field select:focus{border-color:var(--accent);background:var(--bg2)}
+.field.full{grid-column:1/-1}
+.form-actions{grid-column:1/-1;display:flex;gap:10px;flex-wrap:wrap;padding-top:4px}
+.btn-save{background:linear-gradient(135deg,var(--accent),#059669);color:#0d1a14;font-weight:700;padding:10px 22px}
+.btn-save:hover{filter:brightness(1.1)}
+
+/* ── DRIVE PANEL ─────────────────────────────────── */
+.drive-view{display:none;flex-direction:column;gap:20px}
+.drive-view.active{display:flex}
+.drive-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.step-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:20px;position:relative;
+}
+.step-num{
+  width:28px;height:28px;border-radius:50%;background:var(--faint);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:12px;font-weight:500;color:var(--muted);margin-bottom:12px;
+}
+.step-card.done .step-num{background:rgba(52,211,153,.2);color:var(--green)}
+.step-card h3{font-size:13px;font-weight:600;margin-bottom:4px}
+.step-card p{font-size:12px;color:var(--muted);line-height:1.5}
+.step-card .field{margin-top:12px}
+.drive-status-bar{
+  display:flex;align-items:center;gap:12px;padding:14px 18px;
+  border-radius:10px;border:1px solid var(--border);background:var(--surface);
+  font-size:13px;
+}
+.status-dot{width:9px;height:9px;border-radius:50%;background:var(--faint);flex-shrink:0}
+.status-dot.connected{background:var(--green);box-shadow:0 0 8px rgba(52,211,153,.5)}
+.status-dot.syncing{background:var(--accent2);animation:blink 1s infinite}
+.status-dot.error{background:var(--red)}
+.status-dot.success{background:var(--green)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.drive-actions-row{display:flex;gap:10px;flex-wrap:wrap}
+.drive-log{
+  background:var(--bg2);border:1px solid var(--border);border-radius:10px;
+  padding:14px 16px;font-family:var(--mono);font-size:11px;color:var(--muted);
+  max-height:120px;overflow-y:auto;line-height:1.8;
+}
+.drive-log .log-line{display:block}
+.drive-log .log-ok{color:var(--green)}
+.drive-log .log-err{color:var(--red)}
+.drive-log .log-info{color:var(--accent2)}
+.hint-box{
+  background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.15);
+  border-radius:8px;padding:12px 14px;font-size:12px;color:var(--muted);line-height:1.6;
+}
+.hint-box code{font-family:var(--mono);background:var(--bg3);padding:.1rem .35rem;border-radius:4px;font-size:.9em;color:var(--text)}
+.hint-box strong{color:var(--accent2)}
+
+/* ── TOAST ───────────────────────────────────────── */
+.toast{
+  position:fixed;bottom:24px;right:24px;z-index:999;
+  padding:11px 18px;border-radius:10px;font-size:13px;font-weight:600;
+  background:#1e3a2a;color:var(--green);border:1px solid rgba(52,211,153,.25);
+  box-shadow:0 8px 32px rgba(0,0,0,.4);
+  opacity:0;transform:translateY(10px);transition:.3s ease;pointer-events:none;
+}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.err{background:#2a1e1e;color:var(--red);border-color:rgba(248,113,113,.25)}
+
+/* ── MINI CHART in acc cards ─────────────────────── */
+.sparkline{height:3px;border-radius:99px;background:var(--faint);margin-top:6px;overflow:hidden}
+.sparkline-fill{height:100%;border-radius:99px;background:var(--accent);transition:width .6s}
+.sparkline-fill.neg{background:var(--red)}
+
+/* ── RESPONSIVE ──────────────────────────────────── */
+@media(max-width:1100px){
+  .two-col{grid-template-columns:1fr}
+  .kpi-row{grid-template-columns:repeat(2,1fr)}
+  .drive-steps{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+  :root{--sidebar-w:0px}
+  .sidebar{position:fixed;left:-240px;width:240px;height:100vh;transition:left .25s ease}
+  .sidebar.open{left:0;width:240px}
+  .shell{grid-template-columns:1fr}
+  .kpi-row{grid-template-columns:repeat(2,1fr)}
+  .three-col{grid-template-columns:repeat(2,1fr)}
+  .main{padding:16px}
+  .header{padding:0 16px}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3z"/><circle cx="17.5" cy="17.5" r="3.5"/></svg>
+      </div>
+      <div class="logo-text">Ledger<span>Balance Dashboard</span></div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section-label">Overview</div>
+      <div class="nav-item active" data-view="dashboard" onclick="switchView('dashboard',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-item" data-view="accounts" onclick="switchView('accounts',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        Accounts
+        <span class="badge" id="navAccBadge">6</span>
+      </div>
+      <div class="nav-item" data-view="transactions" onclick="switchView('transactions',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+        Transactions
+        <span class="badge" id="navTxnBadge">0</span>
+      </div>
+      <div class="nav-section-label">Actions</div>
+      <div class="nav-item" data-view="add" onclick="switchView('add',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+        Add Entry
+      </div>
+      <div class="nav-item" data-view="drive" onclick="switchView('drive',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 12H2M12 2l10 10-10 10"/></svg>
+        Drive Sync
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="drive-connect-mini" onclick="switchView('drive', document.querySelector('[data-view=drive]'))">
+        <span class="drive-dot" id="miniDriveDot"></span>
+        <span id="miniDriveLabel">Not connected</span>
+        <strong id="miniDriveStatus">›</strong>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── HEADER ── -->
+  <header class="header">
+    <button class="btn btn-ghost" id="menuBtn" onclick="document.getElementById('sidebar').classList.toggle('open')" style="display:none;padding:8px 10px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+    <div class="header-title" id="headerTitle">Overview <span>Dashboard</span></div>
+    <div class="header-actions">
+      <button class="btn btn-ghost theme-btn" onclick="toggleTheme()">🌙</button>
+      <button class="btn btn-green" onclick="downloadExcel()">⬇ Excel</button>
+      <button class="btn btn-blue" id="topSyncBtn" onclick="saveToDrive()" disabled>
+        <svg width="14" height="14" viewBox="0 0 87.3 78" fill="currentColor"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z"/><path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z"/><path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z"/><path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z"/><path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z"/><path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z"/></svg>
+        Sync Drive
+      </button>
+    </div>
+  </header>
+
+  <!-- ── MAIN ── -->
+  <main class="main" id="mainArea">
+
+    <!-- ═══ DASHBOARD VIEW ═══ -->
+    <div class="view active" id="view-dashboard">
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="kpi-label">Total Balance</div>
+          <div class="kpi-val" id="kTotalBal">₹0</div>
+          <div class="kpi-sub"><span class="kpi-badge badge-pos" id="kTotalBadge">All Accounts</span></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Highest Balance</div>
+          <div class="kpi-val" id="kHighBal">₹0</div>
+          <div class="kpi-sub" id="kHighName" style="color:var(--muted);font-size:11px">—</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Total Entries</div>
+          <div class="kpi-val mono" id="kEntries">0</div>
+          <div class="kpi-sub"><span class="kpi-badge badge-neu">Transactions</span></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Overdrawn</div>
+          <div class="kpi-val mono" id="kOverdrawn">0</div>
+          <div class="kpi-sub"><span class="kpi-badge badge-neg">Accounts</span></div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="panel">
+          <div class="panel-hdr">
+            <div><h2>Balance Overview</h2><p>All 6 accounts at a glance</p></div>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-bars" id="chartBars"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-hdr">
+            <div><h2>Recent Activity</h2><p>Last 5 transactions</p></div>
+          </div>
+          <div class="tbl-wrap">
+            <table id="recentTable">
+              <thead><tr><th>Account</th><th>Type</th><th>Amount</th><th>Date</th></tr></thead>
+              <tbody id="recentBody"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="recentEmpty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>
+            No transactions yet
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ ACCOUNTS VIEW ═══ -->
+    <div class="view" id="view-accounts">
+      <div class="three-col" id="accGrid"></div>
+    </div>
+
+    <!-- ═══ TRANSACTIONS VIEW ═══ -->
+    <div class="view" id="view-transactions">
+      <div class="panel">
+        <div class="panel-hdr">
+          <div><h2>All Transactions</h2><p id="txnCount">0 entries</p></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <select id="filterAcc" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:7px;padding:6px 10px;font-size:12px" onchange="renderTransactions()">
+              <option value="">All Accounts</option>
+              <option value="ACC-001">ACC-001 – Arun Kumar</option>
+              <option value="ACC-002">ACC-002 – Divya</option>
+              <option value="ACC-003">ACC-003 – Karthik</option>
+              <option value="ACC-004">ACC-004 – Meena</option>
+              <option value="ACC-005">ACC-005 – Naveen</option>
+              <option value="ACC-006">ACC-006 – Priya</option>
+            </select>
+            <select id="filterType" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:7px;padding:6px 10px;font-size:12px" onchange="renderTransactions()">
+              <option value="">All Types</option>
+              <option value="Credit">Credit</option>
+              <option value="Debit">Debit</option>
+            </select>
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Account</th><th>Holder</th><th>Type</th><th>Amount</th><th>Balance After</th><th>Date</th></tr></thead>
+            <tbody id="txnBody"></tbody>
+          </table>
+          <div class="empty-state" id="txnEmpty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12h6M9 16h6M7 4H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1"/><path d="M9 4h6v2H9z"/></svg>
+            No entries yet. Add some!
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ ADD ENTRY VIEW ═══ -->
+    <div class="view" id="view-add">
+      <div class="two-col">
+        <div class="panel">
+          <div class="panel-hdr"><div><h2>New Transaction</h2><p>Entry saves to dashboard and Drive</p></div></div>
+          <div class="panel-body">
+            <form id="entryForm" onsubmit="handleSubmit(event)">
+              <div class="form-grid">
+                <div class="field">
+                  <label>Account ID</label>
+                  <select id="accountId" onchange="syncHolder()">
+                    <option value="ACC-001">ACC-001 – Arun Kumar</option>
+                    <option value="ACC-002">ACC-002 – Divya</option>
+                    <option value="ACC-003">ACC-003 – Karthik</option>
+                    <option value="ACC-004">ACC-004 – Meena</option>
+                    <option value="ACC-005">ACC-005 – Naveen</option>
+                    <option value="ACC-006">ACC-006 – Priya</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Account Holder</label>
+                  <input type="text" id="holderName" placeholder="Auto-filled"/>
+                </div>
+                <div class="field">
+                  <label>Type</label>
+                  <select id="entryType">
+                    <option value="Credit">Credit</option>
+                    <option value="Debit">Debit</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Amount (₹)</label>
+                  <input type="number" id="amount" min="0" step="0.01" placeholder="0.00" required/>
+                </div>
+                <div class="field full">
+                  <label>Date</label>
+                  <input type="date" id="entryDate" required/>
+                </div>
+                <div class="form-actions">
+                  <button type="submit" class="btn btn-save">💾 Save Entry</button>
+                  <button type="button" class="btn btn-ghost" onclick="loadSample()">Load Sample</button>
+                  <button type="button" class="btn btn-ghost" onclick="clearAll()" style="color:var(--red)">Clear All</button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-hdr"><div><h2>Account Preview</h2><p>Current balance for selected account</p></div></div>
+          <div class="panel-body">
+            <div id="addPreview" style="display:flex;flex-direction:column;gap:10px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ DRIVE VIEW ═══ -->
+    <div class="view" id="view-drive">
+      <div class="drive-steps">
+        <div class="step-card" id="step1card">
+          <div class="step-num">1</div>
+          <h3>OAuth Client ID</h3>
+          <p>Get from Google Cloud Console → Credentials → OAuth 2.0 Client ID</p>
+          <div class="field" style="margin-top:12px">
+            <label>Client ID</label>
+            <input type="text" id="clientIdInput" placeholder="xxxxxxxx.apps.googleusercontent.com" autocomplete="off" spellcheck="false" oninput="savePrefs()"/>
+          </div>
+          <div class="hint-box" style="margin-top:10px">
+            Enable <code>Google Drive API</code> + <code>Google Picker API</code>.<br>
+            Add your domain to <code>Authorized JS origins</code>.
+          </div>
+        </div>
+        <div class="step-card" id="step2card">
+          <div class="step-num">2</div>
+          <h3>Sign In</h3>
+          <p>Authenticate with your Google account to access Drive.</p>
+          <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px">
+            <button class="btn btn-blue" id="signInBtn" onclick="doSignIn()">🔑 Sign In with Google</button>
+            <button class="btn btn-ghost" id="signOutBtn" onclick="doSignOut()" style="display:none">Sign Out</button>
+          </div>
+        </div>
+        <div class="step-card" id="step3card">
+          <div class="step-num">3</div>
+          <h3>Select Excel File</h3>
+          <p>Paste your File ID from Drive URL or use the picker.</p>
+          <div class="field" style="margin-top:12px">
+            <label>File ID</label>
+            <input type="text" id="fileIdInput" placeholder="1w2Px1BuIHQU2..." autocomplete="off" spellcheck="false" oninput="updateDriveButtons();savePrefs()"/>
+          </div>
+          <button class="btn btn-ghost" id="pickFileBtn" onclick="openPicker()" disabled style="margin-top:8px;width:100%;justify-content:center">📂 Pick File from Drive</button>
+          <div class="hint-box" style="margin-top:10px;font-size:11px">
+            <code>drive.google.com/file/d/<strong>[FILE-ID]</strong>/view</code>
+          </div>
+        </div>
+      </div>
+
+      <div class="drive-status-bar" id="driveStatusBar">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Not connected — enter your Client ID and sign in.</span>
+      </div>
+
+      <div class="drive-actions-row">
+        <button class="btn btn-blue" id="loadDriveBtn" onclick="loadFromDrive()" disabled style="background:#0f9d58">📥 Load from Drive</button>
+        <button class="btn btn-blue" id="saveDriveBtn" onclick="saveToDrive()" disabled>☁ Save to Drive</button>
+      </div>
+
+      <div class="panel">
+        <div class="panel-hdr"><div><h2>Sync Log</h2></div></div>
+        <div class="drive-log" id="driveLog"><span class="log-line log-info">— Sync log will appear here —</span></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════
+//  DATA
+// ══════════════════════════════════════════════════
+const ACCOUNTS = {
+  'ACC-001':'Arun Kumar','ACC-002':'Divya','ACC-003':'Karthik',
+  'ACC-004':'Meena','ACC-005':'Naveen','ACC-006':'Priya'
+};
+const ACC_IDS = Object.keys(ACCOUNTS);
+let entries = [];
+
+// Drive
+let tokenClient=null, accessToken=null, driveFileId='', pickerLoaded=false;
+const SCOPES='https://www.googleapis.com/auth/drive.file';
+
+// ══════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════
+document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
+syncHolder();
+loadPrefs();
+refreshAll();
+
+// responsive menu button
+if(window.innerWidth<=760) document.getElementById('menuBtn').style.display='flex';
+window.addEventListener('resize',()=>{
+  document.getElementById('menuBtn').style.display = window.innerWidth<=760?'flex':'none';
+});
+
+// ══════════════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════════════
+const TITLES = {
+  dashboard:'Overview <span>Dashboard</span>',
+  accounts:'Accounts <span>Overview</span>',
+  transactions:'All <span>Transactions</span>',
+  add:'Add <span>Entry</span>',
+  drive:'Google Drive <span>Sync</span>'
+};
+function switchView(name, el){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  if(el) el.classList.add('active');
+  document.getElementById('headerTitle').innerHTML = TITLES[name]||name;
+  document.getElementById('sidebar').classList.remove('open');
+  if(name==='add') renderAddPreview();
+}
+
+// ══════════════════════════════════════════════════
+//  FORMAT
+// ══════════════════════════════════════════════════
+function inr(v){
+  return new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',minimumFractionDigits:2}).format(v);
+}
+function shortInr(v){
+  const abs=Math.abs(v);
+  const s = v<0?'-':'';
+  if(abs>=1e7) return s+'₹'+(abs/1e7).toFixed(1)+'Cr';
+  if(abs>=1e5) return s+'₹'+(abs/1e5).toFixed(1)+'L';
+  if(abs>=1e3) return s+'₹'+(abs/1e3).toFixed(1)+'K';
+  return inr(v);
+}
+
+// ══════════════════════════════════════════════════
+//  COMPUTE
+// ══════════════════════════════════════════════════
+function getBalances(){
+  const b={};
+  ACC_IDS.forEach(id=>b[id]=0);
+  entries.forEach(e=>b[e.accountId]=(b[e.accountId]||0)+e.signedAmount);
+  return b;
+}
+function getStatus(bal){
+  if(bal>0) return {label:'Positive',cls:'badge-pos',short:'Pos'};
+  if(bal<0) return {label:'Overdrawn',cls:'badge-neg',short:'OD'};
+  return {label:'Zero',cls:'badge-neu',short:'Zero'};
+}
+function txnCount(accId){ return entries.filter(e=>e.accountId===accId).length; }
+
+// ══════════════════════════════════════════════════
+//  REFRESH ALL
+// ══════════════════════════════════════════════════
+function refreshAll(){
+  renderKPIs();
+  renderChart();
+  renderRecent();
+  renderAccounts();
+  renderTransactions();
+  document.getElementById('navTxnBadge').textContent = entries.length;
+}
+
+// ══════════════════════════════════════════════════
+//  KPI CARDS
+// ══════════════════════════════════════════════════
+function renderKPIs(){
+  const bal = getBalances();
+  const vals = Object.values(bal);
+  const total = vals.reduce((s,v)=>s+v,0);
+  const maxVal = Math.max(...vals);
+  const maxId = ACC_IDS.find(id=>bal[id]===maxVal);
+  const overdrawn = vals.filter(v=>v<0).length;
+  document.getElementById('kTotalBal').textContent = shortInr(total);
+  document.getElementById('kHighBal').textContent = shortInr(maxVal);
+  document.getElementById('kHighName').textContent = maxId ? ACCOUNTS[maxId] : '—';
+  document.getElementById('kEntries').textContent = entries.length;
+  document.getElementById('kOverdrawn').textContent = overdrawn;
+}
+
+// ══════════════════════════════════════════════════
+//  BAR CHART
+// ══════════════════════════════════════════════════
+function renderChart(){
+  const bal = getBalances();
+  const vals = Object.values(bal);
+  const maxAbs = Math.max(1, ...vals.map(Math.abs));
+  const wrap = document.getElementById('chartBars');
+  wrap.innerHTML = ACC_IDS.map(id=>{
+    const v = bal[id];
+    const pct = Math.max(4, Math.round((Math.abs(v)/maxAbs)*100));
+    const neg = v<0;
+    return `<div class="chart-bar-group">
+      <div class="chart-bar-track">
+        <div class="chart-bar-fill${neg?' neg':''}" style="height:${pct}%"></div>
+      </div>
+      <div class="chart-bar-label">${id.replace('ACC-','')}</div>
+      <div class="chart-bar-val">${shortInr(v)}</div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════
+//  RECENT TABLE
+// ══════════════════════════════════════════════════
+function renderRecent(){
+  const body = document.getElementById('recentBody');
+  const empty = document.getElementById('recentEmpty');
+  const last5 = entries.slice(-5).reverse();
+  if(!last5.length){body.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  body.innerHTML = last5.map(e=>`<tr>
+    <td class="mono" style="font-size:11px">${e.accountId}</td>
+    <td><span class="type-chip ${e.entryType==='Credit'?'cr':'dr'}">${e.entryType}</span></td>
+    <td class="mono ${e.entryType==='Credit'?'cr':'dr'}">${inr(e.signedAmount)}</td>
+    <td style="color:var(--muted);font-size:12px">${e.entryDate}</td>
+  </tr>`).join('');
+}
+
+// ══════════════════════════════════════════════════
+//  ACCOUNT CARDS
+// ══════════════════════════════════════════════════
+function renderAccounts(){
+  const bal = getBalances();
+  const vals = Object.values(bal);
+  const maxAbs = Math.max(1,...vals.map(Math.abs));
+  document.getElementById('accGrid').innerHTML = ACC_IDS.map(id=>{
+    const v = bal[id];
+    const st = getStatus(v);
+    const pct = Math.round((Math.abs(v)/maxAbs)*100);
+    const cnt = txnCount(id);
+    return `<div class="acc-card">
+      <div class="acc-card-top">
+        <div class="acc-id">${id}</div>
+        <span class="kpi-badge ${st.cls}">${st.short}</span>
+      </div>
+      <div class="acc-name">${ACCOUNTS[id]}</div>
+      <div class="acc-bal ${v<0?'dr':v>0?'cr':''}">${inr(v)}</div>
+      <div class="sparkline"><div class="sparkline-fill${v<0?' neg':''}" style="width:${pct}%"></div></div>
+      <div class="acc-meta">
+        <span class="acc-txn">${cnt} transaction${cnt!==1?'s':''}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════
+//  TRANSACTIONS TABLE
+// ══════════════════════════════════════════════════
+function renderTransactions(){
+  const accF = document.getElementById('filterAcc').value;
+  const typeF = document.getElementById('filterType').value;
+  let filtered = entries.slice().reverse();
+  if(accF) filtered = filtered.filter(e=>e.accountId===accF);
+  if(typeF) filtered = filtered.filter(e=>e.entryType===typeF);
+  document.getElementById('txnCount').textContent = filtered.length+' entries';
+  const body = document.getElementById('txnBody');
+  const empty = document.getElementById('txnEmpty');
+  if(!filtered.length){body.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  body.innerHTML = filtered.map(e=>`<tr>
+    <td class="mono" style="font-size:11px">${e.accountId}</td>
+    <td>${e.holderName}</td>
+    <td><span class="type-chip ${e.entryType==='Credit'?'cr':'dr'}">${e.entryType}</span></td>
+    <td class="mono ${e.entryType==='Credit'?'cr':'dr'}">${inr(e.signedAmount)}</td>
+    <td class="mono">${inr(e.balanceAfter)}</td>
+    <td style="color:var(--muted);font-size:12px">${e.entryDate}</td>
+  </tr>`).join('');
+}
+
+// ══════════════════════════════════════════════════
+//  ADD ENTRY PREVIEW
+// ══════════════════════════════════════════════════
+function syncHolder(){
+  const id = document.getElementById('accountId').value;
+  document.getElementById('holderName').value = ACCOUNTS[id]||'';
+  renderAddPreview();
+}
+function renderAddPreview(){
+  const id = document.getElementById('accountId')?.value;
+  if(!id) return;
+  const bal = getBalances();
+  const v = bal[id]||0;
+  const st = getStatus(v);
+  const cnt = txnCount(id);
+  document.getElementById('addPreview').innerHTML = `
+    <div class="acc-card">
+      <div class="acc-card-top"><div class="acc-id">${id}</div><span class="kpi-badge ${st.cls}">${st.label}</span></div>
+      <div class="acc-name">${ACCOUNTS[id]}</div>
+      <div class="acc-bal ${v<0?'dr':v>0?'cr':''}">${inr(v)}</div>
+      <div class="sparkline"><div class="sparkline-fill${v<0?' neg':''}" style="width:60%"></div></div>
+      <div class="acc-meta"><span class="acc-txn">${cnt} transaction${cnt!==1?'s':''}</span></div>
+    </div>
+    <div class="hint-box">Adding a <strong>Credit</strong> increases the balance. A <strong>Debit</strong> decreases it.</div>
+  `;
+}
+
+// ══════════════════════════════════════════════════
+//  FORM SUBMIT
+// ══════════════════════════════════════════════════
+function handleSubmit(e){
+  e.preventDefault();
+  const accId = document.getElementById('accountId').value;
+  const amt   = parseFloat(document.getElementById('amount').value);
+  const type  = document.getElementById('entryType').value;
+  const signed= type==='Credit'?amt:-amt;
+  const prevBal = entries.filter(x=>x.accountId===accId).reduce((s,x)=>s+x.signedAmount,0);
+  entries.push({
+    accountId:accId, holderName:document.getElementById('holderName').value.trim()||ACCOUNTS[accId],
+    entryType:type, amount:amt, signedAmount:signed, balanceAfter:prevBal+signed,
+    entryDate:document.getElementById('entryDate').value
+  });
+  document.getElementById('entryForm').reset();
+  document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
+  syncHolder();
+  refreshAll();
+  toast('✅ Entry saved!');
+}
+
+// ══════════════════════════════════════════════════
+//  SAMPLE / CLEAR
+// ══════════════════════════════════════════════════
+function loadSample(){
+  entries=[];
+  [['ACC-001','Arun Kumar','Credit',25000,'2026-05-18'],['ACC-001','Arun Kumar','Debit',5000,'2026-05-21'],
+   ['ACC-002','Divya','Credit',42000,'2026-05-18'],['ACC-003','Karthik','Debit',6000,'2026-05-19'],
+   ['ACC-003','Karthik','Credit',12000,'2026-05-21'],['ACC-004','Meena','Credit',31000,'2026-05-19'],
+   ['ACC-005','Naveen','Credit',18500,'2026-05-20'],['ACC-006','Priya','Debit',3500,'2026-05-20'],
+   ['ACC-006','Priya','Credit',7000,'2026-05-21']
+  ].forEach(([aId,h,t,amt,d])=>{
+    const signed=t==='Credit'?amt:-amt;
+    const prev=entries.filter(x=>x.accountId===aId).reduce((s,x)=>s+x.signedAmount,0);
+    entries.push({accountId:aId,holderName:h,entryType:t,amount:amt,signedAmount:signed,balanceAfter:prev+signed,entryDate:d});
+  });
+  refreshAll();
+  toast('📊 Sample data loaded!');
+}
+function clearAll(){
+  if(!confirm('Clear all entries?')) return;
+  entries=[];
+  refreshAll();
+  toast('🗑 Cleared.');
+}
+
+// ══════════════════════════════════════════════════
+//  EXCEL EXPORT
+// ══════════════════════════════════════════════════
+function buildWb(){
+  const wb=XLSX.utils.book_new();
+  const bal=getBalances();
+  const total=Object.values(bal).reduce((s,v)=>s+v,0);
+  const highest=Math.max(...Object.values(bal));
+  const dash=[['Account Balance Dashboard'],[],
+    ['Account ID','Holder','Balance','Status'],
+    ...ACC_IDS.map(id=>[id,ACCOUNTS[id],bal[id],bal[id]>0?'Positive':bal[id]<0?'Overdrawn':'Zero']),
+    [],['Total',total],['Highest',highest],['Entries',entries.length]
+  ];
+  const wd=XLSX.utils.aoa_to_sheet(dash);
+  wd['!cols']=[{wch:14},{wch:18},{wch:16},{wch:12}];
+  XLSX.utils.book_append_sheet(wb,wd,'Dashboard');
+  ACC_IDS.forEach(id=>{
+    const rows=entries.filter(e=>e.accountId===id);
+    const ws=XLSX.utils.aoa_to_sheet([
+      ['Timestamp','Account ID','Holder','Type','Amount','Balance After'],
+      ...rows.map(e=>[e.entryDate,e.accountId,e.holderName,e.entryType,e.signedAmount,e.balanceAfter])
+    ]);
+    ws['!cols']=[{wch:13},{wch:12},{wch:16},{wch:8},{wch:12},{wch:14}];
+    XLSX.utils.book_append_sheet(wb,ws,id);
+  });
+  return wb;
+}
+function downloadExcel(){
+  if(!entries.length){toast('Add entries first.',true);return;}
+  XLSX.writeFile(buildWb(),'Account_Balance.xlsx');
+  toast('📥 Excel downloaded!');
+}
+
+// ══════════════════════════════════════════════════
+//  GOOGLE DRIVE
+// ══════════════════════════════════════════════════
+function log(msg,cls=''){
+  const dl=document.getElementById('driveLog');
+  const line=document.createElement('span');
+  line.className='log-line'+(cls?' log-'+cls:'');
+  line.textContent='['+new Date().toLocaleTimeString()+'] '+msg;
+  dl.appendChild(line);
+  dl.scrollTop=dl.scrollHeight;
+}
+function setStatus(state,msg){
+  document.getElementById('statusDot').className='status-dot '+state;
+  document.getElementById('statusText').textContent=msg;
+  // mini sidebar dot
+  const mini=document.getElementById('miniDriveDot');
+  const miniLbl=document.getElementById('miniDriveLabel');
+  if(state==='connected'||state==='success'){mini.className='drive-dot on';miniLbl.textContent='Connected';}
+  else{mini.className='drive-dot';miniLbl.textContent='Not connected';}
+}
+function updateDriveButtons(){
+  driveFileId=document.getElementById('fileIdInput').value.trim();
+  const ready=!!accessToken&&!!driveFileId;
+  document.getElementById('loadDriveBtn').disabled=!ready;
+  document.getElementById('saveDriveBtn').disabled=!ready;
+  document.getElementById('topSyncBtn').disabled=!ready;
+}
+function loadPrefs(){
+  try{
+    const cid=localStorage.getItem('abd_client_id');
+    const fid=localStorage.getItem('abd_file_id');
+    if(cid) document.getElementById('clientIdInput').value=cid;
+    if(fid){document.getElementById('fileIdInput').value=fid;driveFileId=fid;}
+  }catch(e){}
+}
+function savePrefs(){
+  try{
+    localStorage.setItem('abd_client_id',document.getElementById('clientIdInput').value.trim());
+    localStorage.setItem('abd_file_id',document.getElementById('fileIdInput').value.trim());
+  }catch(e){}
+}
+
+function loadGapi(){
+  return new Promise(r=>gapi.load('client:picker',r));
+}
+async function initGapi(cid){
+  await loadGapi();
+  await gapi.client.init({discoveryDocs:['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']});
+  pickerLoaded=true;
+  document.getElementById('pickFileBtn').disabled=!accessToken;
+  document.getElementById('step2card').classList.add('done');
+}
+function initToken(cid){
+  tokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:cid, scope:SCOPES,
+    callback:(resp)=>{
+      if(resp.error){setStatus('error','Sign-in failed: '+resp.error);log('Sign-in error: '+resp.error,'err');return;}
+      accessToken=resp.access_token;
+      gapi.client.setToken({access_token:accessToken});
+      onSignedIn();
+    }
+  });
+}
+function onSignedIn(){
+  setStatus('connected','Signed in to Google. Select your file and sync.');
+  log('Signed in successfully.','ok');
+  document.getElementById('signInBtn').style.display='none';
+  document.getElementById('signOutBtn').style.display='';
+  document.getElementById('pickFileBtn').disabled=!pickerLoaded;
+  document.getElementById('step2card').classList.add('done');
+  document.getElementById('step3card').classList.add('done');
+  updateDriveButtons();
+  toast('🔑 Signed in to Google!');
+}
+function doSignIn(){
+  const cid=document.getElementById('clientIdInput').value.trim();
+  if(!cid){toast('Enter your Client ID first.',true);return;}
+  setStatus('syncing','Opening Google sign-in…');
+  savePrefs();
+  try{
+    initToken(cid);
+    initGapi(cid).catch(err=>log('gapi init: '+err.message,'err'));
+    tokenClient.requestAccessToken({prompt:'consent'});
+  }catch(err){setStatus('error',err.message);log(err.message,'err');}
+}
+function doSignOut(){
+  if(accessToken) google.accounts.oauth2.revoke(accessToken,()=>{});
+  accessToken=null;
+  gapi.client.setToken(null);
+  document.getElementById('signInBtn').style.display='';
+  document.getElementById('signOutBtn').style.display='none';
+  document.getElementById('pickFileBtn').disabled=true;
+  updateDriveButtons();
+  setStatus('idle','Signed out.');
+  log('Signed out.','info');
+  toast('👋 Signed out.');
+}
+function openPicker(){
+  if(!pickerLoaded||!accessToken) return;
+  const view=new google.picker.View(google.picker.ViewId.DOCS);
+  view.setMimeTypes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel');
+  new google.picker.PickerBuilder()
+    .addView(view).setOAuthToken(accessToken).setCallback(pickerCb).build().setVisible(true);
+}
+function pickerCb(data){
+  if(data[google.picker.Response.ACTION]===google.picker.Action.PICKED){
+    const doc=data[google.picker.Response.DOCUMENTS][0];
+    document.getElementById('fileIdInput').value=doc[google.picker.Document.ID];
+    updateDriveButtons(); savePrefs();
+    toast('📄 '+doc[google.picker.Document.NAME]+' selected.');
+    log('File selected: '+doc[google.picker.Document.NAME],'ok');
+  }
+}
+async function loadFromDrive(){
+  driveFileId=document.getElementById('fileIdInput').value.trim();
+  if(!accessToken||!driveFileId) return;
+  setStatus('syncing','Downloading from Drive…');
+  log('Downloading file…','info');
+  document.getElementById('loadDriveBtn').disabled=true;
+  try{
+    const resp=await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,{headers:{Authorization:'Bearer '+accessToken}});
+    if(!resp.ok) throw new Error('HTTP '+resp.status+' '+resp.statusText);
+    const buf=await resp.arrayBuffer();
+    const wb=XLSX.read(new Uint8Array(buf),{type:'array'});
+    entries=[];
+    ACC_IDS.forEach(id=>{
+      const ws=wb.Sheets[id];
+      if(!ws) return;
+      XLSX.utils.sheet_to_json(ws,{header:1}).slice(1).forEach(row=>{
+        if(!row||row.length<6) return;
+        const [dt,aId,holder,type,amt,balAfter]=row;
+        if(!dt||!aId) return;
+        const sa=parseFloat(amt)||0;
+        entries.push({accountId:String(aId),holderName:String(holder||ACCOUNTS[aId]||''),
+          entryType:String(type||'Credit'),amount:Math.abs(sa),signedAmount:sa,
+          balanceAfter:parseFloat(balAfter)||0,entryDate:String(dt)});
+      });
+    });
+    refreshAll();
+    setStatus('success',`Loaded ${entries.length} entries from Drive.`);
+    log(`Loaded ${entries.length} entries.`,'ok');
+    toast(`📥 ${entries.length} entries loaded!`);
+  }catch(err){
+    setStatus('error','Load failed: '+err.message);
+    log('Load error: '+err.message,'err');
+    toast('❌ '+err.message,true);
+  }finally{document.getElementById('loadDriveBtn').disabled=false;}
+}
+async function saveToDrive(){
+  driveFileId=document.getElementById('fileIdInput').value.trim();
+  if(!accessToken||!driveFileId){toast('Connect Drive first.',true);return;}
+  if(!entries.length){toast('Add entries first.',true);return;}
+  setStatus('syncing','Uploading to Drive…');
+  log('Uploading…','info');
+  document.getElementById('saveDriveBtn').disabled=true;
+  document.getElementById('topSyncBtn').disabled=true;
+  try{
+    const out=XLSX.write(buildWb(),{bookType:'xlsx',type:'array'});
+    const blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const resp=await fetch(`https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`,{
+      method:'PATCH',
+      headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'},
+      body:blob
+    });
+    if(!resp.ok){const e=await resp.json().catch(()=>({error:{message:resp.statusText}}));throw new Error(e.error?.message||resp.statusText);}
+    setStatus('success',`Saved ${entries.length} entries to Drive.`);
+    log(`Saved ${entries.length} entries to Drive.`,'ok');
+    toast('☁ Saved to Google Drive!');
+  }catch(err){
+    setStatus('error','Save failed: '+err.message);
+    log('Save error: '+err.message,'err');
+    toast('❌ '+err.message,true);
+  }finally{
+    document.getElementById('saveDriveBtn').disabled=!accessToken||!driveFileId;
+    document.getElementById('topSyncBtn').disabled=!accessToken||!driveFileId;
+  }
+}
+
+// ══════════════════════════════════════════════════
+//  THEME
+// ══════════════════════════════════════════════════
+function toggleTheme(){
+  const root=document.documentElement;
+  root.setAttribute('data-theme',root.getAttribute('data-theme')==='dark'?'light':'dark');
+}
+
+// ══════════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════════
+function toast(msg,err=false){
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.className='toast'+(err?' err':'')+' show';
+  clearTimeout(el._t);
+  el._t=setTimeout(()=>el.classList.remove('show'),3200);
+}
+</script>
+</body>
+</html>
