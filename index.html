@@ -971,34 +971,89 @@ async function loadPrefs(){
   }catch(e){}
 }
 
-// Auto reconnect on page load — silently re-authenticates if user already
-// granted access before, so no sign-in popup is shown on return visits.
+let _tokenRefreshTimer = null;
+
+// Called every time we get a fresh token (first sign-in OR silent refresh).
+// Schedules the next silent refresh so the session NEVER expires.
+function onTokenReceived(resp, isAutoReconnect){
+  if(resp.error){
+    if(isAutoReconnect) log('Auto sign-in skipped (sign in once to enable permanent login).','info');
+    return;
+  }
+  const wasAlreadySignedIn = !!accessToken;
+  accessToken = resp.access_token;
+  gapi.client.setToken({access_token: accessToken});
+  // Persist token + expiry
+  try{
+    const expiry = Date.now() + 55 * 60 * 1000;
+    window.storage.set('abd_token', JSON.stringify({token: accessToken, expiry}));
+  }catch(e){}
+  if(!wasAlreadySignedIn){
+    onSignedIn();
+    const fid = document.getElementById('fileIdInput').value.trim();
+    if(fid){ log('Auto-loading file from Drive…','info'); loadFromDrive(); }
+  } else {
+    gapi.client.setToken({access_token: accessToken});
+    log('Token silently refreshed — session continues.','info');
+  }
+  // Schedule next silent refresh in 55 minutes — keeps session alive forever
+  clearTimeout(_tokenRefreshTimer);
+  _tokenRefreshTimer = setTimeout(()=> silentRefreshToken(), 55 * 60 * 1000);
+}
+
+function silentRefreshToken(){
+  if(!tokenClient) return;
+  try{ tokenClient.requestAccessToken({prompt:''}); }catch(e){}
+}
+
+// Auto reconnect on page load. After signing in once, this silently restores
+// the session on every future page load — permanently, with no popup.
 async function autoReconnect(){
   const cid = document.getElementById('clientIdInput').value.trim();
-  if(!cid) return; // no saved client ID — nothing to reconnect
+  if(!cid) return;
+
+  // Always init GAPI first so picker + drive client are ready
+  try{ await initGapi(cid); }catch(e){}
+
+  // Create token client once — reused for all future silent refreshes
   try{
-    // Init GAPI + picker in background
-    initGapi(cid).catch(()=>{});
-    // Init token client with silent prompt (no popup if already authorized)
     tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: cid,
       scope: SCOPES,
       prompt: '',
-      callback: async (resp) => {
-        if(resp.error){ log('Auto sign-in skipped: '+resp.error,'info'); return; }
-        accessToken = resp.access_token;
-        gapi.client.setToken({access_token: accessToken});
-        onSignedIn();
-        // Auto-load the Drive file if we have a file ID saved
-        const fid = document.getElementById('fileIdInput').value.trim();
-        if(fid){
-          log('Auto-loading file from Drive…','info');
-          await loadFromDrive();
-        }
-      }
+      callback: (resp) => onTokenReceived(resp, true)
     });
-    tokenClient.requestAccessToken({prompt:''});
-  }catch(e){ log('Auto reconnect failed: '+e.message,'err'); }
+  }catch(e){ log('Could not init token client: '+e.message,'err'); return; }
+
+  // Fast path: restore from saved token if still valid (no network call)
+  try{
+    const res = await window.storage.get('abd_token');
+    if(res && res.value){
+      const {token, expiry} = JSON.parse(res.value);
+      if(token && expiry && Date.now() < expiry){
+        accessToken = token;
+        gapi.client.setToken({access_token: accessToken});
+        document.getElementById('signInBtn').style.display='none';
+        document.getElementById('signOutBtn').style.display='';
+        document.getElementById('pickFileBtn').disabled=!pickerLoaded;
+        document.getElementById('step2card').classList.add('done');
+        document.getElementById('step3card').classList.add('done');
+        updateDriveButtons();
+        setStatus('connected','Permanently signed in — session restored.');
+        log('Session restored from storage. You are permanently signed in.','ok');
+        const fid = document.getElementById('fileIdInput').value.trim();
+        if(fid){ log('Auto-loading file from Drive…','info'); await loadFromDrive(); }
+        // Schedule silent refresh before this token expires
+        const remaining = Math.max((expiry - Date.now()) - 60000, 0);
+        clearTimeout(_tokenRefreshTimer);
+        _tokenRefreshTimer = setTimeout(()=> silentRefreshToken(), remaining);
+        return;
+      }
+    }
+  }catch(e){}
+
+  // No valid saved token — silently request one (no popup if previously authorised)
+  try{ tokenClient.requestAccessToken({prompt:''}); }catch(e){}
 }
 async function savePrefs(){
   try{
@@ -1032,15 +1087,15 @@ function initToken(cid){
   });
 }
 function onSignedIn(){
-  setStatus('connected','Signed in to Google. Select your file and sync.');
-  log('Signed in successfully.','ok');
+  setStatus('connected','Signed in to Google. You will stay signed in permanently.');
+  log('Signed in. Permanent session active — token auto-refreshes every 55 min.','ok');
   document.getElementById('signInBtn').style.display='none';
   document.getElementById('signOutBtn').style.display='';
   document.getElementById('pickFileBtn').disabled=!pickerLoaded;
   document.getElementById('step2card').classList.add('done');
   document.getElementById('step3card').classList.add('done');
   updateDriveButtons();
-  toast('🔑 Signed in to Google!');
+  toast('🔑 Signed in! Session is permanent.');
 }
 function doSignIn(){
   const cid=document.getElementById('clientIdInput').value.trim();
@@ -1056,14 +1111,17 @@ function doSignIn(){
 function doSignOut(){
   if(accessToken) google.accounts.oauth2.revoke(accessToken,()=>{});
   accessToken=null;
+  clearTimeout(_tokenRefreshTimer);
   gapi.client.setToken(null);
   document.getElementById('signInBtn').style.display='';
   document.getElementById('signOutBtn').style.display='none';
   document.getElementById('pickFileBtn').disabled=true;
   updateDriveButtons();
-  setStatus('idle','Signed out.');
-  log('Signed out.','info');
+  setStatus('idle','Signed out. Permanent session cleared.');
+  log('Signed out and session cleared.','info');
   toast('👋 Signed out.');
+  // Clear ALL persisted auth so next load starts fresh
+  try{ window.storage.delete('abd_token'); }catch(e){}
 }
 function openPicker(){
   if(!pickerLoaded||!accessToken) return;
