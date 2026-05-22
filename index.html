@@ -155,19 +155,26 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .panel-hdr p{font-size:12px;color:var(--muted);margin-top:1px}
 .panel-body{padding:20px}
 
-/* ── BAR CHART ───────────────────────────────────── */
-.chart-wrap{padding:16px 20px 20px}
-.chart-bars{display:flex;align-items:flex-end;gap:10px;height:160px;margin-top:8px}
-.chart-bar-group{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px}
-.chart-bar-track{width:100%;flex:1;display:flex;align-items:flex-end;border-radius:6px 6px 0 0;overflow:hidden;background:var(--bg3)}
-.chart-bar-fill{
-  width:100%;border-radius:6px 6px 0 0;
-  background:linear-gradient(180deg,var(--accent),rgba(110,231,183,.4));
-  transition:height .6s cubic-bezier(.34,1.56,.64,1);min-height:4px;
+/* ── BALANCE KPI GRID ────────────────────────────── */
+.acc-kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.acc-kpi-card{
+  background:var(--bg3);border:1px solid var(--border);border-radius:10px;
+  padding:12px 14px;position:relative;overflow:hidden;transition:.15s;
 }
-.chart-bar-fill.neg{background:linear-gradient(180deg,var(--red),rgba(248,113,113,.3))}
-.chart-bar-label{font-size:10px;color:var(--muted);text-align:center;font-family:var(--mono)}
-.chart-bar-val{font-size:9px;color:var(--muted);font-family:var(--mono);text-align:center}
+.acc-kpi-card:hover{border-color:var(--border2);transform:translateY(-1px)}
+.acc-kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.acc-kpi-card:nth-child(1)::before{background:linear-gradient(90deg,#6ee7b7,transparent)}
+.acc-kpi-card:nth-child(2)::before{background:linear-gradient(90deg,#3b82f6,transparent)}
+.acc-kpi-card:nth-child(3)::before{background:linear-gradient(90deg,#f59e0b,transparent)}
+.acc-kpi-card:nth-child(4)::before{background:linear-gradient(90deg,#a78bfa,transparent)}
+.acc-kpi-card:nth-child(5)::before{background:linear-gradient(90deg,#fb923c,transparent)}
+.acc-kpi-card:nth-child(6)::before{background:linear-gradient(90deg,#f472b6,transparent)}
+.acc-kpi-id{font-family:var(--mono);font-size:9px;letter-spacing:.06em;color:var(--muted);margin-bottom:2px}
+.acc-kpi-name{font-size:12px;font-weight:600;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acc-kpi-bal{font-family:var(--mono);font-size:17px;font-weight:500;letter-spacing:-.02em;line-height:1}
+.acc-kpi-bar{height:3px;border-radius:99px;background:var(--faint);margin-top:8px;overflow:hidden}
+.acc-kpi-bar-fill{height:100%;border-radius:99px;background:var(--accent);transition:width .6s}
+.acc-kpi-bar-fill.neg{background:var(--red)}
 
 /* ── ACCOUNT CARDS ───────────────────────────────── */
 .acc-card{
@@ -386,8 +393,8 @@ tr:last-child td{border-bottom:none}
           <div class="panel-hdr">
             <div><h2>Balance Overview</h2><p>All 6 accounts at a glance</p></div>
           </div>
-          <div class="chart-wrap">
-            <div class="chart-bars" id="chartBars"></div>
+          <div class="panel-body" style="padding:16px 20px 20px">
+            <div class="acc-kpi-grid" id="balanceKpiGrid"></div>
           </div>
         </div>
         <div class="panel">
@@ -489,7 +496,6 @@ tr:last-child td{border-bottom:none}
                 <div class="form-actions">
                   <button type="submit" class="btn btn-save">💾 Save Entry</button>
                   <button type="button" class="btn btn-ghost" onclick="loadSample()">Load Sample</button>
-                  <button type="button" class="btn btn-ghost" onclick="clearAll()" style="color:var(--red)">Clear All</button>
                 </div>
               </div>
             </form>
@@ -577,15 +583,14 @@ const ACCOUNTS = {
 const ACC_IDS = Object.keys(ACCOUNTS);
 let entries = [];
 
-// ── localStorage persistence ──────────────────────
-const STORAGE_KEY = 'abd_entries';
-function saveEntries(){
-  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); }catch(e){}
+// ── Persistent storage (window.storage) ──────────
+async function saveEntries(){
+  try{ await window.storage.set('abd_entries', JSON.stringify(entries)); }catch(e){}
 }
-function loadEntries(){
+async function loadEntries(){
   try{
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if(raw){ entries = JSON.parse(raw); }
+    const res = await window.storage.get('abd_entries');
+    if(res && res.value){ entries = JSON.parse(res.value); }
   }catch(e){ entries = []; }
 }
 
@@ -598,9 +603,14 @@ const SCOPES='https://www.googleapis.com/auth/drive';
 // ══════════════════════════════════════════════════
 document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
 syncHolder();
-loadPrefs();
-loadEntries();
-refreshAll();
+
+// async init — load persisted data before first render
+(async ()=>{
+  await loadPrefs();
+  await loadEntries();
+  refreshAll();
+  updateDriveButtons();
+})();
 
 // responsive menu button
 if(window.innerWidth<=760) document.getElementById('menuBtn').style.display='flex';
@@ -664,7 +674,7 @@ function txnCount(accId){ return entries.filter(e=>e.accountId===accId).length; 
 // ══════════════════════════════════════════════════
 function refreshAll(){
   renderKPIs();
-  renderChart();
+  renderBalanceKpis();
   renderRecent();
   renderAccounts();
   renderTransactions();
@@ -691,21 +701,20 @@ function renderKPIs(){
 // ══════════════════════════════════════════════════
 //  BAR CHART
 // ══════════════════════════════════════════════════
-function renderChart(){
+function renderBalanceKpis(){
   const bal = getBalances();
   const vals = Object.values(bal);
   const maxAbs = Math.max(1, ...vals.map(Math.abs));
-  const wrap = document.getElementById('chartBars');
-  wrap.innerHTML = ACC_IDS.map(id=>{
+  document.getElementById('balanceKpiGrid').innerHTML = ACC_IDS.map(id=>{
     const v = bal[id];
-    const pct = Math.max(4, Math.round((Math.abs(v)/maxAbs)*100));
+    const pct = Math.round((Math.abs(v)/maxAbs)*100);
     const neg = v<0;
-    return `<div class="chart-bar-group">
-      <div class="chart-bar-track">
-        <div class="chart-bar-fill${neg?' neg':''}" style="height:${pct}%"></div>
-      </div>
-      <div class="chart-bar-label">${id.replace('ACC-','')}</div>
-      <div class="chart-bar-val">${shortInr(v)}</div>
+    const cls = neg?'dr':v>0?'cr':'';
+    return `<div class="acc-kpi-card">
+      <div class="acc-kpi-id">${id}</div>
+      <div class="acc-kpi-name">${ACCOUNTS[id]}</div>
+      <div class="acc-kpi-bal ${cls}">${shortInr(v)}</div>
+      <div class="acc-kpi-bar"><div class="acc-kpi-bar-fill${neg?' neg':''}" style="width:${pct}%"></div></div>
     </div>`;
   }).join('');
 }
@@ -808,7 +817,7 @@ function renderAddPreview(){
 // ══════════════════════════════════════════════════
 //  FORM SUBMIT
 // ══════════════════════════════════════════════════
-function handleSubmit(e){
+async function handleSubmit(e){
   e.preventDefault();
   const accId = document.getElementById('accountId').value;
   const amt   = parseFloat(document.getElementById('amount').value);
@@ -820,7 +829,7 @@ function handleSubmit(e){
     entryType:type, amount:amt, signedAmount:signed, balanceAfter:prevBal+signed,
     entryDate:document.getElementById('entryDate').value
   });
-  saveEntries();
+  await saveEntries();
   document.getElementById('entryForm').reset();
   document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
   syncHolder();
@@ -831,7 +840,7 @@ function handleSubmit(e){
 // ══════════════════════════════════════════════════
 //  SAMPLE / CLEAR
 // ══════════════════════════════════════════════════
-function loadSample(){
+async function loadSample(){
   entries=[];
   [['ACC-001','Arun Kumar','Credit',25000,'2026-05-18'],['ACC-001','Arun Kumar','Debit',5000,'2026-05-21'],
    ['ACC-002','Divya','Credit',42000,'2026-05-18'],['ACC-003','Karthik','Debit',6000,'2026-05-19'],
@@ -843,16 +852,9 @@ function loadSample(){
     const prev=entries.filter(x=>x.accountId===aId).reduce((s,x)=>s+x.signedAmount,0);
     entries.push({accountId:aId,holderName:h,entryType:t,amount:amt,signedAmount:signed,balanceAfter:prev+signed,entryDate:d});
   });
-  saveEntries();
+  await saveEntries();
   refreshAll();
   toast('📊 Sample data loaded!');
-}
-function clearAll(){
-  if(!confirm('Clear all entries?')) return;
-  entries=[];
-  saveEntries();
-  refreshAll();
-  toast('🗑 Cleared.');
 }
 
 // ══════════════════════════════════════════════════
@@ -916,18 +918,21 @@ function updateDriveButtons(){
   document.getElementById('saveDriveBtn').disabled=!canSave;
   document.getElementById('topSyncBtn').disabled=!canSave;
 }
-function loadPrefs(){
+async function loadPrefs(){
   try{
-    const cid=localStorage.getItem('abd_client_id');
-    const fid=localStorage.getItem('abd_file_id');
-    if(cid) document.getElementById('clientIdInput').value=cid;
-    if(fid){document.getElementById('fileIdInput').value=fid;driveFileId=fid;}
+    const res = await window.storage.get('abd_prefs');
+    if(res && res.value){
+      const {cid, fid} = JSON.parse(res.value);
+      if(cid) document.getElementById('clientIdInput').value = cid;
+      if(fid){ document.getElementById('fileIdInput').value = fid; driveFileId = fid; }
+    }
   }catch(e){}
 }
-function savePrefs(){
+async function savePrefs(){
   try{
-    localStorage.setItem('abd_client_id',document.getElementById('clientIdInput').value.trim());
-    localStorage.setItem('abd_file_id',document.getElementById('fileIdInput').value.trim());
+    const cid = document.getElementById('clientIdInput').value.trim();
+    const fid = document.getElementById('fileIdInput').value.trim();
+    await window.storage.set('abd_prefs', JSON.stringify({cid, fid}));
   }catch(e){}
 }
 
@@ -1027,7 +1032,7 @@ async function loadFromDrive(){
           balanceAfter:parseFloat(balAfter)||0,entryDate:String(dt)});
       });
     });
-    saveEntries();
+    await saveEntries();
     refreshAll();
     log(`Loaded ${entries.length} entries.`,'ok');
     toast(`📥 ${entries.length} entries loaded!`);
