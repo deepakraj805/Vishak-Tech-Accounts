@@ -576,6 +576,18 @@ const ACCOUNTS = {
 const ACC_IDS = Object.keys(ACCOUNTS);
 let entries = [];
 
+// ── localStorage persistence ──────────────────────
+const STORAGE_KEY = 'abd_entries';
+function saveEntries(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); }catch(e){}
+}
+function loadEntries(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){ entries = JSON.parse(raw); }
+  }catch(e){ entries = []; }
+}
+
 // Drive
 let tokenClient=null, accessToken=null, driveFileId='', pickerLoaded=false;
 const SCOPES='https://www.googleapis.com/auth/drive.file';
@@ -586,6 +598,7 @@ const SCOPES='https://www.googleapis.com/auth/drive.file';
 document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
 syncHolder();
 loadPrefs();
+loadEntries();
 refreshAll();
 
 // responsive menu button
@@ -806,6 +819,7 @@ function handleSubmit(e){
     entryType:type, amount:amt, signedAmount:signed, balanceAfter:prevBal+signed,
     entryDate:document.getElementById('entryDate').value
   });
+  saveEntries();
   document.getElementById('entryForm').reset();
   document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
   syncHolder();
@@ -828,12 +842,14 @@ function loadSample(){
     const prev=entries.filter(x=>x.accountId===aId).reduce((s,x)=>s+x.signedAmount,0);
     entries.push({accountId:aId,holderName:h,entryType:t,amount:amt,signedAmount:signed,balanceAfter:prev+signed,entryDate:d});
   });
+  saveEntries();
   refreshAll();
   toast('📊 Sample data loaded!');
 }
 function clearAll(){
   if(!confirm('Clear all entries?')) return;
   entries=[];
+  saveEntries();
   refreshAll();
   toast('🗑 Cleared.');
 }
@@ -1009,8 +1025,8 @@ async function loadFromDrive(){
           balanceAfter:parseFloat(balAfter)||0,entryDate:String(dt)});
       });
     });
+    saveEntries();
     refreshAll();
-    setStatus('success',`Loaded ${entries.length} entries from Drive.`);
     log(`Loaded ${entries.length} entries.`,'ok');
     toast(`📥 ${entries.length} entries loaded!`);
   }catch(err){
