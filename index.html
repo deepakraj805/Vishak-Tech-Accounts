@@ -649,8 +649,17 @@ syncHolder();
   // Fade out overlay
   overlay.classList.add('hidden');
   setTimeout(()=>{ overlay.style.display='none'; }, 320);
-  // Auto reconnect to Google Drive silently (no sign-in popup if already authorized)
-  setTimeout(autoReconnect, 800);
+  // Auto reconnect — wait for Google API scripts to fully load first
+  function tryAutoReconnect(attempts){
+    if(typeof gapi !== 'undefined' && typeof google !== 'undefined' && google.accounts){
+      autoReconnect();
+    } else if(attempts > 0){
+      setTimeout(()=> tryAutoReconnect(attempts-1), 300);
+    } else {
+      log('Google API scripts did not load. Check your internet connection.','err');
+    }
+  }
+  setTimeout(()=> tryAutoReconnect(20), 300);
 })();
 
 // responsive menu button
@@ -997,8 +1006,6 @@ function onTokenReceived(resp, isAutoReconnect){
   }catch(e){}
   if(!wasAlreadySignedIn){
     onSignedIn();
-    const fid = document.getElementById('fileIdInput').value.trim();
-    if(fid){ log('Auto-loading file from Drive…','info'); loadFromDrive(); }
   } else {
     gapi.client.setToken({access_token: accessToken});
     log('Token silently refreshed — session continues.','info');
@@ -1048,8 +1055,6 @@ async function autoReconnect(){
         updateDriveButtons();
         setStatus('connected','Permanently signed in — session restored.');
         log('Session restored from storage. You are permanently signed in.','ok');
-        const fid = document.getElementById('fileIdInput').value.trim();
-        if(fid){ log('Auto-loading file from Drive…','info'); await loadFromDrive(); }
         // Schedule silent refresh before this token expires
         const remaining = Math.max((expiry - Date.now()) - 60000, 0);
         clearTimeout(_tokenRefreshTimer);
@@ -1159,7 +1164,8 @@ async function loadFromDrive(){
     if(!resp.ok) throw new Error('HTTP '+resp.status+' '+resp.statusText);
     const buf=await resp.arrayBuffer();
     const wb=XLSX.read(new Uint8Array(buf),{type:'array'});
-    entries=[];
+    // Parse into a temp array — never touch entries[] until success
+    const newEntries=[];
     ACC_IDS.forEach(id=>{
       const ws=wb.Sheets[id];
       if(!ws) return;
@@ -1168,19 +1174,23 @@ async function loadFromDrive(){
         const [dt,aId,holder,type,amt,balAfter]=row;
         if(!dt||!aId) return;
         const sa=parseFloat(amt)||0;
-        entries.push({accountId:String(aId),holderName:String(holder||ACCOUNTS[aId]||''),
+        newEntries.push({accountId:String(aId),holderName:String(holder||ACCOUNTS[aId]||''),
           entryType:String(type||'Credit'),amount:Math.abs(sa),signedAmount:sa,
           balanceAfter:parseFloat(balAfter)||0,entryDate:String(dt)});
       });
     });
-    await saveEntries();
+    entries=newEntries; // only replace after successful parse
+    await saveEntries(); // persist to localStorage immediately
     refreshAll();
+    setStatus('connected',`Loaded ${entries.length} entries from Drive.`);
     log(`Loaded ${entries.length} entries.`,'ok');
     toast(`📥 ${entries.length} entries loaded!`);
   }catch(err){
-    setStatus('error','Load failed: '+err.message);
-    log('Load error: '+err.message,'err');
-    toast('❌ '+err.message,true);
+    // Never wipe local data on failure — local entries are preserved
+    setStatus('error','Drive load failed — showing local data.');
+    log('Load error: '+err.message+' (local data preserved)','err');
+    toast('❌ Drive load failed. Local data shown.',true);
+    refreshAll(); // re-render preserved local entries
   }finally{document.getElementById('loadDriveBtn').disabled=false;}
 }
 async function saveToDrive(){
