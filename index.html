@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -11,21 +11,21 @@
 <style>
 /* ── TOKENS ──────────────────────────────────────── */
 :root {
-  --bg:        #0d0f14;
-  --bg2:       #13161e;
-  --bg3:       #191d28;
-  --surface:   #1e2230;
-  --surface2:  #252a3a;
-  --border:    rgba(255,255,255,.07);
-  --border2:   rgba(255,255,255,.12);
-  --text:      #e8eaf0;
-  --muted:     #7a8299;
-  --faint:     #3d4358;
-  --accent:    #6ee7b7;
-  --accent2:   #3b82f6;
-  --gold:      #f59e0b;
-  --red:       #f87171;
-  --green:     #34d399;
+  --bg:        #f5f0e8;
+  --bg2:       #ede7da;
+  --bg3:       #e4ddd0;
+  --surface:   #faf7f2;
+  --surface2:  #f0ebe0;
+  --border:    rgba(120,90,50,.10);
+  --border2:   rgba(120,90,50,.18);
+  --text:      #2c2416;
+  --muted:     #8a7660;
+  --faint:     #c8bfad;
+  --accent:    #0d9488;
+  --accent2:   #0891b2;
+  --gold:      #b45309;
+  --red:       #dc2626;
+  --green:     #0d9488;
   --sidebar-w: 240px;
   --hdr:       64px;
   --radius:    12px;
@@ -33,12 +33,22 @@
   --display: 'Fraunces', Georgia, serif;
   --body: 'DM Sans', system-ui, sans-serif;
 }
-[data-theme="light"] {
-  --bg: #f0f2f8; --bg2: #e8eaf2; --bg3: #dde0eb;
-  --surface: #fff; --surface2: #f5f7fc;
-  --border: rgba(0,0,0,.07); --border2: rgba(0,0,0,.12);
-  --text: #111520; --muted: #5c637d; --faint: #c8cdd9;
-  --accent: #059669; --accent2: #2563eb;
+[data-theme="dark"] {
+  --bg:        #1a1510;
+  --bg2:       #221c14;
+  --bg3:       #2a231a;
+  --surface:   #302820;
+  --surface2:  #3a2f25;
+  --border:    rgba(255,210,140,.07);
+  --border2:   rgba(255,210,140,.13);
+  --text:      #f0e8d8;
+  --muted:     #a0916e;
+  --faint:     #4a3d2e;
+  --accent:    #2dd4bf;
+  --accent2:   #22d3ee;
+  --gold:      #fbbf24;
+  --red:       #f87171;
+  --green:     #2dd4bf;
 }
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -66,7 +76,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
   padding:0 20px;border-bottom:1px solid var(--border);flex-shrink:0;
 }
 .logo-mark{
-  width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+  width:34px;height:34px;border-radius:10px;background:var(--accent);
   display:flex;align-items:center;justify-content:center;flex-shrink:0;
 }
 .logo-mark svg{width:18px;height:18px;fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round}
@@ -81,7 +91,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
   border:1px solid transparent;
 }
 .nav-item:hover{background:var(--surface);color:var(--text)}
-.nav-item.active{background:linear-gradient(135deg,rgba(110,231,183,.12),rgba(59,130,246,.08));color:var(--accent);border-color:rgba(110,231,183,.15)}
+.nav-item.active{background:var(--surface);color:var(--accent);border-color:rgba(110,231,183,.15)}
 .nav-item svg{width:16px;height:16px;flex-shrink:0;opacity:.8}
 .nav-item .badge{margin-left:auto;background:var(--accent2);color:#fff;font-size:10px;padding:1px 6px;border-radius:99px;font-family:var(--mono)}
 
@@ -108,12 +118,12 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .btn{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;transition:.15s;white-space:nowrap}
 .btn-ghost{background:var(--surface);color:var(--muted);border:1px solid var(--border2)}
 .btn-ghost:hover{color:var(--text);border-color:var(--border2)}
-.btn-green{background:#1d6f42;color:#fff}
-.btn-green:hover{background:#155230}
+.btn-green{background:#0d9488;color:#fff}
+.btn-green:hover{background:#0f766e}
 .btn-blue{background:var(--accent2);color:#fff}
 .btn-blue:hover{background:#1d4ed8}
 .btn-blue:disabled{background:#374151;color:var(--muted);cursor:not-allowed}
-.btn-accent{background:linear-gradient(135deg,var(--accent),#059669);color:#0d1a14}
+.btn-accent{background:var(--accent);color:#fff}
 .btn-accent:hover{filter:brightness(1.1)}
 .theme-btn{background:var(--surface);border:1px solid var(--border2);color:var(--muted);width:36px;height:36px;padding:0;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px}
 
@@ -128,14 +138,9 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
 .kpi-card{
   background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
-  padding:18px 20px;position:relative;overflow:hidden;transition:.2s;
+  padding:18px 20px;transition:.2s;
 }
-.kpi-card:hover{border-color:var(--border2);transform:translateY(-1px)}
-.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
-.kpi-card:nth-child(1)::before{background:linear-gradient(90deg,var(--accent),transparent)}
-.kpi-card:nth-child(2)::before{background:linear-gradient(90deg,var(--accent2),transparent)}
-.kpi-card:nth-child(3)::before{background:linear-gradient(90deg,var(--gold),transparent)}
-.kpi-card:nth-child(4)::before{background:linear-gradient(90deg,var(--red),transparent)}
+.kpi-card:hover{border-color:var(--border2)}
 .kpi-label{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:8px}
 .kpi-val{font-family:var(--mono);font-size:26px;font-weight:500;line-height:1;letter-spacing:-.02em;margin-bottom:6px}
 .kpi-sub{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px}
@@ -159,16 +164,9 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .acc-kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .acc-kpi-card{
   background:var(--bg3);border:1px solid var(--border);border-radius:10px;
-  padding:12px 14px;position:relative;overflow:hidden;transition:.15s;
+  padding:12px 14px;transition:.15s;
 }
-.acc-kpi-card:hover{border-color:var(--border2);transform:translateY(-1px)}
-.acc-kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
-.acc-kpi-card:nth-child(1)::before{background:linear-gradient(90deg,#6ee7b7,transparent)}
-.acc-kpi-card:nth-child(2)::before{background:linear-gradient(90deg,#3b82f6,transparent)}
-.acc-kpi-card:nth-child(3)::before{background:linear-gradient(90deg,#f59e0b,transparent)}
-.acc-kpi-card:nth-child(4)::before{background:linear-gradient(90deg,#a78bfa,transparent)}
-.acc-kpi-card:nth-child(5)::before{background:linear-gradient(90deg,#fb923c,transparent)}
-.acc-kpi-card:nth-child(6)::before{background:linear-gradient(90deg,#f472b6,transparent)}
+.acc-kpi-card:hover{border-color:var(--border2)}
 .acc-kpi-id{font-family:var(--mono);font-size:9px;letter-spacing:.06em;color:var(--muted);margin-bottom:2px}
 .acc-kpi-name{font-size:12px;font-weight:600;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .acc-kpi-bal{font-family:var(--mono);font-size:17px;font-weight:500;letter-spacing:-.02em;line-height:1}
@@ -216,7 +214,7 @@ tr:last-child td{border-bottom:none}
 .field input:focus,.field select:focus{border-color:var(--accent);background:var(--bg2)}
 .field.full{grid-column:1/-1}
 .form-actions{grid-column:1/-1;display:flex;gap:10px;flex-wrap:wrap;padding-top:4px}
-.btn-save{background:linear-gradient(135deg,var(--accent),#059669);color:#0d1a14;font-weight:700;padding:10px 22px}
+.btn-save{background:var(--accent);color:#fff;font-weight:700;padding:10px 22px}
 .btn-save:hover{filter:brightness(1.1)}
 
 /* ── DRIVE PANEL ─────────────────────────────────── */
@@ -258,7 +256,7 @@ tr:last-child td{border-bottom:none}
 .drive-log .log-err{color:var(--red)}
 .drive-log .log-info{color:var(--accent2)}
 .hint-box{
-  background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.15);
+  background:rgba(14,116,144,.07);border:1px solid rgba(14,116,144,.15);
   border-radius:8px;padding:12px 14px;font-size:12px;color:var(--muted);line-height:1.6;
 }
 .hint-box code{font-family:var(--mono);background:var(--bg3);padding:.1rem .35rem;border-radius:4px;font-size:.9em;color:var(--text)}
@@ -268,12 +266,12 @@ tr:last-child td{border-bottom:none}
 .toast{
   position:fixed;bottom:24px;right:24px;z-index:999;
   padding:11px 18px;border-radius:10px;font-size:13px;font-weight:600;
-  background:#1e3a2a;color:var(--green);border:1px solid rgba(52,211,153,.25);
+  background:rgba(13,148,136,.12);color:var(--accent);border:1px solid rgba(13,148,136,.3);
   box-shadow:0 8px 32px rgba(0,0,0,.4);
   opacity:0;transform:translateY(10px);transition:.3s ease;pointer-events:none;
 }
 .toast.show{opacity:1;transform:translateY(0)}
-.toast.err{background:#2a1e1e;color:var(--red);border-color:rgba(248,113,113,.25)}
+.toast.err{background:rgba(220,38,38,.08);color:var(--red);border-color:rgba(220,38,38,.25)}
 
 /* ── MINI CHART in acc cards ─────────────────────── */
 .sparkline{height:3px;border-radius:99px;background:var(--faint);margin-top:6px;overflow:hidden}
@@ -368,7 +366,7 @@ tr:last-child td{border-bottom:none}
     </button>
     <div class="header-title" id="headerTitle">Accounts <span>Dash</span></div>
     <div class="header-actions">
-      <button class="btn btn-ghost theme-btn" onclick="toggleTheme()">🌙</button>
+      <button class="btn btn-ghost theme-btn" onclick="toggleTheme()" id="themeBtn">☀️</button>
       <button class="btn btn-green" onclick="downloadExcel()">⬇ Excel</button>
       <button class="btn btn-blue" id="topSyncBtn" onclick="saveToDrive()" disabled>
         <svg width="14" height="14" viewBox="0 0 87.3 78" fill="currentColor"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z"/><path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z"/><path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z"/><path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z"/><path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z"/><path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z"/></svg>
@@ -399,9 +397,9 @@ tr:last-child td{border-bottom:none}
           <div class="kpi-sub"><span class="kpi-badge badge-neu">Transactions</span></div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">OD Accounts</div>
-          <div class="kpi-val mono" style="font-size:16px;line-height:1.4" id="kODAccounts">3</div>
-          <div class="kpi-sub"><span class="kpi-badge badge-neg">OD-001 · OD-002 · OD-003</span></div>
+          <div class="kpi-label">OD Balance</div>
+          <div class="kpi-val mono dr" id="kODBal">₹0</div>
+          <div class="kpi-sub"><span class="kpi-badge badge-neg" id="kODBadge">OD Accounts</span></div>
         </div>
       </div>
 
@@ -531,7 +529,7 @@ tr:last-child td{border-bottom:none}
     <div class="view" id="view-drive">
 
       <!-- Auto-sync status banner -->
-      <div id="autoSyncBanner" style="display:none;align-items:center;gap:12px;background:linear-gradient(135deg,rgba(110,231,183,.12),rgba(59,130,246,.08));border:1px solid rgba(110,231,183,.2);border-radius:12px;padding:14px 20px">
+      <div id="autoSyncBanner" style="display:none;align-items:center;gap:12px;background:var(--surface);border:1px solid rgba(110,231,183,.2);border-radius:12px;padding:14px 20px">
         <span style="font-size:20px">✅</span>
         <div>
           <div style="font-weight:600;color:var(--accent);font-size:13px">Auto-sync Active</div>
@@ -790,10 +788,15 @@ function renderKPIs(){
   const total = vals.reduce((s,v)=>s+v,0);
   const maxVal = Math.max(...vals);
   const maxId = ACC_IDS.find(id=>bal[id]===maxVal);
+  const odIds = ACC_IDS.filter(id=>ACC_TYPES[id]==='OD Account');
+  const odTotal = odIds.reduce((s,id)=>s+(bal[id]||0),0);
+  const odBadge = odIds.map(id=>id).join(' · ');
   document.getElementById('kTotalBal').textContent = shortInr(total);
   document.getElementById('kHighBal').textContent = shortInr(maxVal);
   document.getElementById('kHighName').textContent = maxId ? ACCOUNTS[maxId] : '—';
   document.getElementById('kEntries').textContent = entries.length;
+  document.getElementById('kODBal').textContent = shortInr(odTotal);
+  document.getElementById('kODBadge').textContent = odBadge || 'OD Accounts';
 }
 
 // ══════════════════════════════════════════════════
@@ -808,9 +811,15 @@ function renderBalanceKpis(){
     const pct = Math.round((Math.abs(v)/maxAbs)*100);
     const neg = v<0;
     const cls = neg?'dr':v>0?'cr':'';
-    const odTag = ACC_TYPES[id]==='OD Account'?'<span style="font-size:9px;background:rgba(248,113,113,.15);color:var(--red);padding:1px 5px;border-radius:4px;margin-left:4px">OD</span>':'';
-    return `<div class="acc-kpi-card">
-      <div class="acc-kpi-id">${id} ${odTag}</div>
+    const isOD = ACC_TYPES[id]==='OD Account';
+    const typeStyle = isOD
+      ? 'border-color:rgba(248,113,113,.25);background:rgba(248,113,113,.05)'
+      : 'border-color:rgba(14,116,144,.25);background:rgba(14,116,144,.06)';
+    const typeTag = isOD
+      ? '<span style="font-size:9px;background:rgba(248,113,113,.15);color:var(--red);padding:1px 5px;border-radius:4px;margin-left:4px;font-weight:600">OD</span>'
+      : '<span style="font-size:9px;background:rgba(14,116,144,.15);color:var(--accent2);padding:1px 5px;border-radius:4px;margin-left:4px;font-weight:600">CA</span>';
+    return `<div class="acc-kpi-card" style="${typeStyle}">
+      <div class="acc-kpi-id">${id}${typeTag}</div>
       <div class="acc-kpi-name">${ACCOUNTS[id]}</div>
       <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:4px;letter-spacing:.02em">${ACC_NUMBERS[id]||''}</div>
       <div class="acc-kpi-bal ${cls}">${shortInr(v)}</div>
@@ -849,9 +858,15 @@ function renderAccounts(){
     const pct = Math.round((Math.abs(v)/maxAbs)*100);
     const cnt = txnCount(id);
     const isOD = ACC_TYPES[id]==='OD Account';
-    return `<div class="acc-card"${isOD?' style="border-color:rgba(248,113,113,.2)"':''}>
+    const cardStyle = isOD
+      ? 'border-color:rgba(248,113,113,.25);background:rgba(248,113,113,.04)'
+      : 'border-color:rgba(14,116,144,.2);background:rgba(14,116,144,.05)';
+    const typeTag = isOD
+      ? '<span style="font-size:9px;background:rgba(248,113,113,.15);color:var(--red);padding:1px 5px;border-radius:4px;margin-left:4px;font-weight:600">OD</span>'
+      : '<span style="font-size:9px;background:rgba(14,116,144,.15);color:var(--accent2);padding:1px 5px;border-radius:4px;margin-left:4px;font-weight:600">CA</span>';
+    return `<div class="acc-card" style="${cardStyle}">
       <div class="acc-card-top">
-        <div class="acc-id">${id}${isOD?' <span style=\"font-size:9px;background:rgba(248,113,113,.15);color:var(--red);padding:1px 5px;border-radius:4px\">OD</span>':''}</div>
+        <div class="acc-id">${id}${typeTag}</div>
         <span class="kpi-badge ${st.cls}">${st.short}</span>
       </div>
       <div class="acc-name">${ACCOUNTS[id]}</div>
@@ -860,7 +875,7 @@ function renderAccounts(){
       <div class="sparkline"><div class="sparkline-fill${v<0?' neg':''}" style="width:${pct}%"></div></div>
       <div class="acc-meta">
         <span class="acc-txn">${cnt} transaction${cnt!==1?'s':''}</span>
-        <span style="font-size:10px;color:var(--muted)">${ACC_TYPES[id]||''}</span>
+        <span style="font-size:10px;color:${isOD?'var(--red)':'var(--accent2)'};font-weight:600">${ACC_TYPES[id]||''}</span>
       </div>
     </div>`;
   }).join('');
@@ -1477,7 +1492,10 @@ async function autoSyncToDrive(){
 // ══════════════════════════════════════════════════
 function toggleTheme(){
   const root=document.documentElement;
-  root.setAttribute('data-theme',root.getAttribute('data-theme')==='dark'?'light':'dark');
+  const next=root.getAttribute('data-theme')==='dark'?'light':'dark';
+  root.setAttribute('data-theme',next);
+  const btn=document.getElementById('themeBtn');
+  if(btn) btn.textContent=next==='dark'?'☀️':'🌙';
 }
 
 // ══════════════════════════════════════════════════
