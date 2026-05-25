@@ -135,7 +135,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .view.active{display:flex;flex-direction:column;gap:20px}
 
 /* ── KPI ROW ─────────────────────────────────────── */
-.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .kpi-card{
   background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
   padding:22px 24px;transition:.2s;position:relative;overflow:hidden;
@@ -401,11 +401,7 @@ tr:last-child td{border-bottom:none}
           <div class="kpi-val mono" id="kEntries">0</div>
           <div class="kpi-sub"><span class="kpi-badge badge-neu">Transactions</span></div>
         </div>
-        <div class="kpi-card">
-          <div class="kpi-label">OD Balance</div>
-          <div class="kpi-val mono dr" id="kODBal">₹0</div>
-          <div class="kpi-sub"><span class="kpi-badge badge-neg" id="kODBadge">OD Accounts</span></div>
-        </div>
+
       </div>
 
       <div class="two-col">
@@ -793,15 +789,10 @@ function renderKPIs(){
   const total = vals.reduce((s,v)=>s+v,0);
   const maxVal = Math.max(...vals);
   const maxId = ACC_IDS.find(id=>bal[id]===maxVal);
-  const odIds = ACC_IDS.filter(id=>ACC_TYPES[id]==='OD Account');
-  const odTotal = odIds.reduce((s,id)=>s+(bal[id]||0),0);
-  const odBadge = odIds.map(id=>id).join(' · ');
   document.getElementById('kTotalBal').textContent = shortInr(total);
   document.getElementById('kHighBal').textContent = shortInr(maxVal);
   document.getElementById('kHighName').textContent = maxId ? ACCOUNTS[maxId] : '—';
   document.getElementById('kEntries').textContent = entries.length;
-  document.getElementById('kODBal').textContent = shortInr(odTotal);
-  document.getElementById('kODBadge').textContent = odBadge || 'OD Accounts';
 }
 
 // ══════════════════════════════════════════════════
