@@ -399,16 +399,16 @@ tr:last-child td{border-bottom:none}
           <div class="kpi-sub"><span class="kpi-badge badge-neu">Transactions</span></div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Overdrawn</div>
-          <div class="kpi-val mono" id="kOverdrawn">0</div>
-          <div class="kpi-sub"><span class="kpi-badge badge-neg">Accounts</span></div>
+          <div class="kpi-label">OD Accounts</div>
+          <div class="kpi-val mono" style="font-size:16px;line-height:1.4" id="kODAccounts">3</div>
+          <div class="kpi-sub"><span class="kpi-badge badge-neg">OD-001 · OD-002 · OD-003</span></div>
         </div>
       </div>
 
       <div class="two-col">
         <div class="panel">
           <div class="panel-hdr">
-            <div><h2>Balance Overview</h2><p>All 6 accounts at a glance</p></div>
+            <div><h2>Balance Overview</h2><p>All accounts at a glance</p></div>
           </div>
           <div class="panel-body" style="padding:16px 20px 20px">
             <div class="acc-kpi-grid" id="balanceKpiGrid"></div>
@@ -445,12 +445,12 @@ tr:last-child td{border-bottom:none}
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <select id="filterAcc" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:7px;padding:6px 10px;font-size:12px" onchange="renderTransactions()">
               <option value="">All Accounts</option>
-              <option value="ACC-001">ACC-001 – Arun Kumar</option>
-              <option value="ACC-002">ACC-002 – Divya</option>
-              <option value="ACC-003">ACC-003 – Karthik</option>
-              <option value="ACC-004">ACC-004 – Meena</option>
-              <option value="ACC-005">ACC-005 – Naveen</option>
-              <option value="ACC-006">ACC-006 – Priya</option>
+              <option value="TMB-PROP">TMB-PROP – Vishak Tech - Proprietor (TMB)</option>
+              <option value="SBER-PROP">SBER-PROP – Vishak Tech - Proprietor (Sber)</option>
+              <option value="TMB-FIRM">TMB-FIRM – Vishak Tech - Firm (TMB)</option>
+              <option value="OD-001">OD-001 – P S. Sathiyapriyan (268700060750130)</option>
+              <option value="OD-002">OD-002 – S. Tamil Selvi (268700060750131)</option>
+              <option value="OD-003">OD-003 – P. Anumitha Shree (268700060750132)</option>
             </select>
             <select id="filterType" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:7px;padding:6px 10px;font-size:12px" onchange="renderTransactions()">
               <option value="">All Types</option>
@@ -483,12 +483,12 @@ tr:last-child td{border-bottom:none}
                 <div class="field">
                   <label>Account ID</label>
                   <select id="accountId" onchange="syncHolder()">
-                    <option value="ACC-001">ACC-001 – Arun Kumar</option>
-                    <option value="ACC-002">ACC-002 – Divya</option>
-                    <option value="ACC-003">ACC-003 – Karthik</option>
-                    <option value="ACC-004">ACC-004 – Meena</option>
-                    <option value="ACC-005">ACC-005 – Naveen</option>
-                    <option value="ACC-006">ACC-006 – Priya</option>
+                    <option value="TMB-PROP">TMB-PROP – Vishak Tech - Proprietor (TMB)</option>
+                    <option value="SBER-PROP">SBER-PROP – Vishak Tech - Proprietor (Sber)</option>
+                    <option value="TMB-FIRM">TMB-FIRM – Vishak Tech - Firm (TMB)</option>
+                    <option value="OD-001">OD-001 – P S. Sathiyapriyan (268700060750130)</option>
+                    <option value="OD-002">OD-002 – S. Tamil Selvi (268700060750131)</option>
+                    <option value="OD-003">OD-003 – P. Anumitha Shree (268700060750132)</option>
                   </select>
                 </div>
                 <div class="field">
@@ -527,9 +527,21 @@ tr:last-child td{border-bottom:none}
       </div>
     </div>
 
-    <!-- ═══ DRIVE VIEW ═══ -->
+    <!-- ═══ DRIVE SYNC VIEW ═══ -->
     <div class="view" id="view-drive">
+
+      <!-- Auto-sync status banner -->
+      <div id="autoSyncBanner" style="display:none;align-items:center;gap:12px;background:linear-gradient(135deg,rgba(110,231,183,.12),rgba(59,130,246,.08));border:1px solid rgba(110,231,183,.2);border-radius:12px;padding:14px 20px">
+        <span style="font-size:20px">✅</span>
+        <div>
+          <div style="font-weight:600;color:var(--accent);font-size:13px">Auto-sync Active</div>
+          <div style="font-size:12px;color:var(--muted)" id="autoSyncMsg">Every new entry saves automatically to Google Drive.</div>
+        </div>
+        <span id="autoSyncSpinner" style="margin-left:auto;display:none;font-size:18px">⏳</span>
+      </div>
+
       <div class="drive-steps">
+        <!-- Step 1 -->
         <div class="step-card" id="step1card">
           <div class="step-num">1</div>
           <h3>OAuth Client ID</h3>
@@ -544,6 +556,7 @@ tr:last-child td{border-bottom:none}
             Use scope: <code>drive</code> (not <code>drive.file</code>).
           </div>
         </div>
+        <!-- Step 2 -->
         <div class="step-card" id="step2card">
           <div class="step-num">2</div>
           <h3>Sign In</h3>
@@ -553,6 +566,7 @@ tr:last-child td{border-bottom:none}
             <button class="btn btn-ghost" id="signOutBtn" onclick="doSignOut()" style="display:none">Sign Out</button>
           </div>
         </div>
+        <!-- Step 3 -->
         <div class="step-card" id="step3card">
           <div class="step-num">3</div>
           <h3>Select Excel File</h3>
@@ -565,6 +579,24 @@ tr:last-child td{border-bottom:none}
           <div class="hint-box" style="margin-top:10px;font-size:11px">
             <code>drive.google.com/file/d/<strong>[FILE-ID]</strong>/view</code>
           </div>
+        </div>
+      </div>
+
+      <!-- Auto-sync toggle -->
+      <div class="panel">
+        <div class="panel-hdr" style="flex-wrap:nowrap">
+          <div>
+            <h2>Auto-Sync to Drive</h2>
+            <p>When ON — every new entry is instantly saved to your Drive Excel file.</p>
+          </div>
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;flex-shrink:0">
+            <span style="font-size:13px;color:var(--muted)" id="autoSyncLabel">OFF</span>
+            <div id="autoSyncToggle" onclick="toggleAutoSync()"
+              style="width:46px;height:26px;border-radius:99px;background:var(--faint);position:relative;cursor:pointer;transition:.2s">
+              <div id="autoSyncKnob"
+                style="width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:.2s;box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>
+            </div>
+          </label>
         </div>
       </div>
 
@@ -594,8 +626,24 @@ tr:last-child td{border-bottom:none}
 //  DATA
 // ══════════════════════════════════════════════════
 const ACCOUNTS = {
-  'ACC-001':'Arun Kumar','ACC-002':'Divya','ACC-003':'Karthik',
-  'ACC-004':'Meena','ACC-005':'Naveen','ACC-006':'Priya'
+  'TMB-PROP':'Vishak Tech - Proprietor (TMB)',
+  'SBER-PROP':'Vishak Tech - Proprietor (Sber)',
+  'TMB-FIRM':'Vishak Tech - Firm (TMB)',
+  'OD-001':'P S. Sathiyapriyan',
+  'OD-002':'S. Tamil Selvi',
+  'OD-003':'P. Anumitha Shree'
+};
+const ACC_NUMBERS = {
+  'TMB-PROP':'268853666666666666',
+  'SBER-PROP':'400003569000000073700',
+  'TMB-FIRM':'268853777777777',
+  'OD-001':'268700060750130',
+  'OD-002':'268700060750131',
+  'OD-003':'268700060750132'
+};
+const ACC_TYPES = {
+  'TMB-PROP':'Current','SBER-PROP':'Current','TMB-FIRM':'Current',
+  'OD-001':'OD Account','OD-002':'OD Account','OD-003':'OD Account'
 };
 const ACC_IDS = Object.keys(ACCOUNTS);
 let entries = [];
@@ -646,6 +694,7 @@ syncHolder();
   }
   refreshAll();
   updateDriveButtons();
+  loadAutoSyncPref();
   // Fade out overlay
   overlay.classList.add('hidden');
   setTimeout(()=>{ overlay.style.display='none'; }, 320);
@@ -729,6 +778,7 @@ function refreshAll(){
   renderAccounts();
   renderTransactions();
   document.getElementById('navTxnBadge').textContent = entries.length;
+  updateBkpStats();
 }
 
 // ══════════════════════════════════════════════════
@@ -740,12 +790,10 @@ function renderKPIs(){
   const total = vals.reduce((s,v)=>s+v,0);
   const maxVal = Math.max(...vals);
   const maxId = ACC_IDS.find(id=>bal[id]===maxVal);
-  const overdrawn = vals.filter(v=>v<0).length;
   document.getElementById('kTotalBal').textContent = shortInr(total);
   document.getElementById('kHighBal').textContent = shortInr(maxVal);
   document.getElementById('kHighName').textContent = maxId ? ACCOUNTS[maxId] : '—';
   document.getElementById('kEntries').textContent = entries.length;
-  document.getElementById('kOverdrawn').textContent = overdrawn;
 }
 
 // ══════════════════════════════════════════════════
@@ -760,9 +808,11 @@ function renderBalanceKpis(){
     const pct = Math.round((Math.abs(v)/maxAbs)*100);
     const neg = v<0;
     const cls = neg?'dr':v>0?'cr':'';
+    const odTag = ACC_TYPES[id]==='OD Account'?'<span style="font-size:9px;background:rgba(248,113,113,.15);color:var(--red);padding:1px 5px;border-radius:4px;margin-left:4px">OD</span>':'';
     return `<div class="acc-kpi-card">
-      <div class="acc-kpi-id">${id}</div>
+      <div class="acc-kpi-id">${id} ${odTag}</div>
       <div class="acc-kpi-name">${ACCOUNTS[id]}</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:4px;letter-spacing:.02em">${ACC_NUMBERS[id]||''}</div>
       <div class="acc-kpi-bal ${cls}">${shortInr(v)}</div>
       <div class="acc-kpi-bar"><div class="acc-kpi-bar-fill${neg?' neg':''}" style="width:${pct}%"></div></div>
     </div>`;
@@ -798,16 +848,19 @@ function renderAccounts(){
     const st = getStatus(v);
     const pct = Math.round((Math.abs(v)/maxAbs)*100);
     const cnt = txnCount(id);
-    return `<div class="acc-card">
+    const isOD = ACC_TYPES[id]==='OD Account';
+    return `<div class="acc-card"${isOD?' style="border-color:rgba(248,113,113,.2)"':''}>
       <div class="acc-card-top">
-        <div class="acc-id">${id}</div>
+        <div class="acc-id">${id}${isOD?' <span style=\"font-size:9px;background:rgba(248,113,113,.15);color:var(--red);padding:1px 5px;border-radius:4px\">OD</span>':''}</div>
         <span class="kpi-badge ${st.cls}">${st.short}</span>
       </div>
       <div class="acc-name">${ACCOUNTS[id]}</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin:2px 0 4px;letter-spacing:.02em">${ACC_NUMBERS[id]||''}</div>
       <div class="acc-bal ${v<0?'dr':v>0?'cr':''}">${inr(v)}</div>
       <div class="sparkline"><div class="sparkline-fill${v<0?' neg':''}" style="width:${pct}%"></div></div>
       <div class="acc-meta">
         <span class="acc-txn">${cnt} transaction${cnt!==1?'s':''}</span>
+        <span style="font-size:10px;color:var(--muted)">${ACC_TYPES[id]||''}</span>
       </div>
     </div>`;
   }).join('');
@@ -884,6 +937,7 @@ async function handleSubmit(e){
   document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
   syncHolder();
   refreshAll();
+  autoSyncToDrive();
   toast('✅ Entry saved!');
 }
 
@@ -892,11 +946,9 @@ async function handleSubmit(e){
 // ══════════════════════════════════════════════════
 async function loadSample(){
   entries=[];
-  [['ACC-001','Arun Kumar','Credit',25000,'2026-05-18'],['ACC-001','Arun Kumar','Debit',5000,'2026-05-21'],
-   ['ACC-002','Divya','Credit',42000,'2026-05-18'],['ACC-003','Karthik','Debit',6000,'2026-05-19'],
-   ['ACC-003','Karthik','Credit',12000,'2026-05-21'],['ACC-004','Meena','Credit',31000,'2026-05-19'],
-   ['ACC-005','Naveen','Credit',18500,'2026-05-20'],['ACC-006','Priya','Debit',3500,'2026-05-20'],
-   ['ACC-006','Priya','Credit',7000,'2026-05-21']
+  [['TMB-PROP','Vishak Tech - Proprietor (TMB)','Credit',50000,'2026-05-18'],['TMB-PROP','Vishak Tech - Proprietor (TMB)','Debit',12000,'2026-05-20'],
+   ['SBER-PROP','Vishak Tech - Proprietor (Sber)','Credit',75000,'2026-05-19'],['SBER-PROP','Vishak Tech - Proprietor (Sber)','Debit',8000,'2026-05-21'],
+   ['TMB-FIRM','Vishak Tech - Firm (TMB)','Credit',30000,'2026-05-19'],['TMB-FIRM','Vishak Tech - Firm (TMB)','Debit',5000,'2026-05-22']
   ].forEach(([aId,h,t,amt,d])=>{
     const signed=t==='Credit'?amt:-amt;
     const prev=entries.filter(x=>x.accountId===aId).reduce((s,x)=>s+x.signedAmount,0);
@@ -1107,6 +1159,8 @@ function onSignedIn(){
   document.getElementById('step2card').classList.add('done');
   document.getElementById('step3card').classList.add('done');
   updateDriveButtons();
+  loadAutoSyncPref();
+  applyAutoSyncUI();
   toast('🔑 Signed in! Session is permanent.');
 }
 function doSignIn(){
@@ -1256,6 +1310,166 @@ async function saveToDrive(){
   }finally{
     updateDriveButtons();
   }
+}
+
+
+// ══════════════════════════════════════════════════
+//  BACKUP & RESTORE
+// ══════════════════════════════════════════════════
+function exportJSON(){
+  if(!entries.length){toast('No entries to export.',true);return;}
+  const data=JSON.stringify({version:1,exportedAt:new Date().toISOString(),entries},null,2);
+  const blob=new Blob([data],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='VishakTech_Backup_'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+  setBkpTime('JSON Export');
+  toast('💾 Backup downloaded!');
+}
+async function importJSON(e){
+  const file=e.target.files[0];
+  if(!file) return;
+  try{
+    const text=await file.text();
+    const obj=JSON.parse(text);
+    const arr=Array.isArray(obj)?obj:(obj.entries||[]);
+    if(!arr.length){toast('No entries found in file.',true);return;}
+    if(!confirm('This will REPLACE all current data with '+arr.length+' entries. Continue?')) return;
+    entries=arr;
+    await saveEntries();
+    refreshAll();
+    setBkpTime('JSON Import');
+    updateBkpStats();
+    toast('✅ '+arr.length+' entries imported!');
+  }catch(err){
+    toast('❌ Invalid file: '+err.message,true);
+  }
+  e.target.value='';
+}
+function copyDataText(){
+  if(!entries.length){toast('No data to copy.',true);return;}
+  const ta=document.getElementById('dataTextarea');
+  ta.value=JSON.stringify({version:1,entries});
+  ta.select();
+  document.execCommand('copy');
+  setBkpTime('Copied to Clipboard');
+  toast('📋 Data copied to clipboard!');
+}
+async function pasteDataText(){
+  const ta=document.getElementById('dataTextarea');
+  const txt=ta.value.trim();
+  if(!txt){toast('Paste your data into the text box first.',true);return;}
+  try{
+    const obj=JSON.parse(txt);
+    const arr=Array.isArray(obj)?obj:(obj.entries||[]);
+    if(!arr.length){toast('No entries found.',true);return;}
+    if(!confirm('Restore '+arr.length+' entries? Current data will be replaced.')) return;
+    entries=arr;
+    await saveEntries();
+    refreshAll();
+    setBkpTime('Paste Restore');
+    updateBkpStats();
+    toast('✅ '+arr.length+' entries restored!');
+  }catch(err){
+    toast('❌ Invalid data: '+err.message,true);
+  }
+}
+function setBkpTime(type){
+  try{
+    const now=new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    const el=document.getElementById('bkpLastTime');
+    const badge=document.getElementById('bkpLastType');
+    if(el) el.textContent=now;
+    if(badge) badge.textContent=type;
+    LS.set('abd_last_bkp',JSON.stringify({time:now,type}));
+  }catch(e){}
+}
+function updateBkpStats(){
+  try{
+    const el=document.getElementById('bkpEntries');
+    if(el) el.textContent=entries.length;
+    const sizeEl=document.getElementById('bkpSize');
+    if(sizeEl){
+      const raw=localStorage.getItem('abd_entries')||'';
+      const kb=(raw.length/1024).toFixed(1);
+      sizeEl.textContent=kb+' KB';
+    }
+    const lbkp=LS.get('abd_last_bkp');
+    if(lbkp){
+      const p=JSON.parse(lbkp.value);
+      const t=document.getElementById('bkpLastTime');
+      const b=document.getElementById('bkpLastType');
+      if(t) t.textContent=p.time||'—';
+      if(b) b.textContent=p.type||'—';
+    }
+    // populate textarea with current data (compact)
+    const ta=document.getElementById('dataTextarea');
+    if(ta && entries.length) ta.value=JSON.stringify({version:1,entries});
+  }catch(e){}
+}
+
+
+// ══════════════════════════════════════════════════
+//  AUTO-SYNC TO DRIVE
+// ══════════════════════════════════════════════════
+let autoSyncEnabled = false;
+let _autoSyncDebounce = null;
+
+function loadAutoSyncPref(){
+  try{
+    const r = LS.get('abd_autosync');
+    if(r && r.value === '1'){ autoSyncEnabled = true; applyAutoSyncUI(); }
+  }catch(e){}
+}
+function toggleAutoSync(){
+  if(!accessToken){ toast('Sign in to Google Drive first.', true); return; }
+  autoSyncEnabled = !autoSyncEnabled;
+  LS.set('abd_autosync', autoSyncEnabled ? '1' : '0');
+  applyAutoSyncUI();
+  toast(autoSyncEnabled ? '🔄 Auto-sync ON — entries will save instantly!' : '⏸ Auto-sync OFF.');
+}
+function applyAutoSyncUI(){
+  const toggle = document.getElementById('autoSyncToggle');
+  const knob   = document.getElementById('autoSyncKnob');
+  const label  = document.getElementById('autoSyncLabel');
+  const banner = document.getElementById('autoSyncBanner');
+  const miniDot = document.getElementById('miniDriveDot');
+  const miniLbl = document.getElementById('miniDriveLabel');
+  if(autoSyncEnabled && accessToken){
+    if(toggle){ toggle.style.background='var(--accent)'; }
+    if(knob)  { knob.style.left='23px'; }
+    if(label) { label.textContent='ON'; label.style.color='var(--accent)'; }
+    if(banner){ banner.style.display='flex'; }
+    if(miniDot){ miniDot.className='drive-dot on'; }
+    if(miniLbl){ miniLbl.textContent='Auto-sync ON'; }
+  } else {
+    if(toggle){ toggle.style.background='var(--faint)'; }
+    if(knob)  { knob.style.left='3px'; }
+    if(label) { label.textContent='OFF'; label.style.color='var(--muted)'; }
+    if(banner){ banner.style.display='none'; }
+  }
+}
+
+// Called after every entry save — debounced so rapid entries batch into one upload
+async function autoSyncToDrive(){
+  if(!autoSyncEnabled || !accessToken) return;
+  clearTimeout(_autoSyncDebounce);
+  // Show spinner
+  const spinner = document.getElementById('autoSyncSpinner');
+  const msg     = document.getElementById('autoSyncMsg');
+  _autoSyncDebounce = setTimeout(async ()=>{
+    if(spinner) spinner.style.display='inline';
+    if(msg)     msg.textContent = 'Syncing…';
+    try{
+      await saveToDrive();
+      if(msg) msg.textContent = 'Last synced: '+new Date().toLocaleTimeString('en-IN');
+    }catch(e){
+      if(msg) msg.textContent = 'Sync failed — will retry on next entry.';
+    }finally{
+      if(spinner) spinner.style.display='none';
+    }
+  }, 1200); // 1.2 s debounce — batches fast consecutive entries
 }
 
 // ══════════════════════════════════════════════════
